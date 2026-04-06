@@ -1,1 +1,1 @@
-# shared geometry helpers
+# SVG/canvas helpers
