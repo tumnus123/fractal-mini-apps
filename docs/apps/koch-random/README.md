@@ -1,7 +1,7 @@
 # Koch Snowflake with Randomness
 
-This mini-app accompanies the illustration showing how randomness can soften
-the rigid regularity of the classical Koch construction, allowing more natural-looking patterns to appear.
+This mini-app accompanies the illustration showing how bounded randomness can soften
+the rigid regularity of the classical Koch construction, allowing a more natural-looking form.
 
 ## Controls
 - Iterations
@@ -13,3 +13,7 @@ the rigid regularity of the classical Koch construction, allowing more natural-l
 A perfectly regular recursive process can produce a crystalline form.
 Introduce bounded randomness, and the same recursive logic begins to resemble
 coastlines, leaves, or frost.
+
+## Publishing
+This folder is designed to run as a static browser app via GitHub Pages using
+PyScript/Pyodide.
