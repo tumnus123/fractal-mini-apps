@@ -1,13 +1,39 @@
-<h1>Fractal Mini-Apps</h1>
-<p>
-  Interactive companions to <em>The Fractal Nature of Reality: A Primer</em>.
-</p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fractal Mini-Apps</title>
+  <link rel="stylesheet" href="./shared/book.css" />
+  <style>
+    body { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 3rem; }
+    .app-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+    .app-card { background: white; border: 1px solid #d9dde5; border-radius: 16px; padding: 1rem 1.1rem; box-shadow: 0 10px 24px rgba(0,0,0,0.05); }
+    .app-card h2 { margin-top: 0; }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+    .button { display: inline-block; text-decoration: none; padding: 0.65rem 0.95rem; border-radius: 999px; background: #1f5fbf; color: white; }
+    .button.secondary { background: #eef3fb; color: #173b7a; }
+  </style>
+</head>
+<body>
+  <h1>Fractal Mini-Apps</h1>
+  <p>
+    Interactive companions to <em>The Fractal Nature of Reality: A Primer</em>.
+    These apps are published as open-source browser-based experiments.
+  </p>
 
-<div class="app-grid">
-  <div class="app-card">
-    <h2>Koch Snowflake with Randomness</h2>
-    <p>Explore how controlled randomness can make a rigid fractal feel organic.</p>
-    <a href="./apps/koch-random/">Run app</a>
-    <a href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/koch-random">View source</a>
+  <div class="app-grid">
+    <article class="app-card">
+      <h2>Koch Snowflake with Randomness</h2>
+      <p>
+        Explore how bounded randomness softens the classical Koch snowflake into
+        more organic-looking forms while preserving recursive structure.
+      </p>
+      <div class="actions">
+        <a class="button" href="./apps/koch-random/">Run app</a>
+        <a class="button secondary" href="https://github.com/YOURNAME/fractal-mini-apps/tree/main/docs/apps/koch-random">View source</a>
+      </div>
+    </article>
   </div>
-</div>
+</body>
+</html>
