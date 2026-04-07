@@ -1,1 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Koch Snowflake with Randomness</title>
+  <link rel="stylesheet" href="../../shared/book.css" />
+  <link rel="stylesheet" href="./style.css" />
+  <script type="module" src="https://pyscript.net/releases/2025.3.1/core.js"></script>
+</head>
+<body>
+  <header class="page-header">
+    <h1>Koch Snowflake with Randomness</h1>
+    <p class="muted">
+      A browser-based companion app for exploring how bounded randomness can make
+      the classical Koch snowflake feel more organic while retaining recursive structure.
+    </p>
+  </header>
 
+  <main class="layout">
+    <aside class="panel controls">
+      <div class="control">
+        <label for="order">
+          <span>Iterations</span>
+          <strong id="order-value">3</strong>
+        </label>
+        <input id="order" type="range" min="0" max="6" step="1" value="3" />
+      </div>
+
+      <div class="control">
+        <label for="randomness">
+          <span>Randomness</span>
+          <strong id="randomness-value">0.08</strong>
+        </label>
+        <input id="randomness" type="range" min="0" max="0.45" step="0.01" value="0.08" />
+      </div>
+
+      <div class="control">
+        <label for="seed">
+          <span>Seed</span>
+        </label>
+        <input id="seed" type="number" min="0" step="1" value="42" />
+      </div>
+
+      <div class="control inline">
+        <input id="show-dimension" type="checkbox" checked />
+        <label for="show-dimension" style="margin:0;">Show dimension plot</label>
+      </div>
+
+      <div class="button-row">
+        <button type="button" py-click="redraw">Redraw</button>
+        <button type="button" class="secondary" py-click="randomize_seed">New seed</button>
+        <button type="button" class="secondary" py-click="download_svg">Download SVG</button>
+      </div>
+
+      <p class="note" id="status">
+        Loading Python runtime…
+      </p>
+    </aside>
+
+    <section class="display">
+      <section class="panel figure-card">
+        <div class="figure-title">
+          <h2 style="margin:0;">Fractal View</h2>
+          <div class="note">Estimated dimension: <span id="dimension-label">—</span></div>
+        </div>
+        <svg id="plot" class="plot-svg" viewBox="0 0 800 800" aria-label="Koch snowflake plot"></svg>
+      </section>
+
+      <section id="dimension-card" class="panel figure-card">
+        <div class="figure-title">
+          <h2 style="margin:0;">Log-Log Box Count Fit</h2>
+          <div class="note">Client-side calculation</div>
+        </div>
+        <svg id="dimension-plot" class="dimension-svg" viewBox="0 0 800 500" aria-label="Dimension plot"></svg>
+      </section>
+    </section>
+  </main>
+
+  <script type="py" src="./app.py" config='{"packages": []}'></script>
+</body>
+</html>
