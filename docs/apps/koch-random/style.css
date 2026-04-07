@@ -1,1 +1,129 @@
+body {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 2rem;
+}
 
+.page-header p {
+  max-width: 72ch;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.05);
+}
+
+.controls {
+  padding: 1rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.control {
+  margin-bottom: 1rem;
+}
+
+.control label {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
+
+.control input[type="range"],
+.control input[type="number"] {
+  width: 100%;
+}
+
+.inline {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  font: inherit;
+  background: var(--accent);
+  color: white;
+}
+
+button.secondary {
+  background: var(--accent-soft);
+  color: #173b7a;
+}
+
+.display {
+  padding: 1rem;
+}
+
+.figure-card {
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.figure-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: white;
+}
+
+.plot-svg {
+  min-height: 540px;
+  aspect-ratio: 1 / 1;
+}
+
+.dimension-svg {
+  min-height: 280px;
+  aspect-ratio: 16 / 10;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 940px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .controls {
+    position: static;
+  }
+}
