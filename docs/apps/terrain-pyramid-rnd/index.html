@@ -540,6 +540,9 @@ def generate_terrain(
     let pyodide = null;
     let generateTerrain = null;
     let isReady = false;
+    let currentCamera = null;
+    const plotEl = document.getElementById("plot");
+    const ruleDetails = document.querySelector(".plot-shell details");
 
     const controls = {
       iterations: document.getElementById("iterations"),
@@ -596,13 +599,31 @@ def generate_terrain(
       };
     }
 
-    function cameraForRandomness(randomness) {
+    function initialCamera() {
       // Near-nadir view: mostly top-down, with a slight oblique angle so relief remains readable.
       return {
         eye: { x: 0.12, y: 0.16, z: 2.35 },
         center: { x: 0, y: 0, z: 0 },
         up: { x: 0, y: 1, z: 0 },
       };
+    }
+
+    function getActiveCamera() {
+      const liveCamera = plotEl?._fullLayout?.scene?.camera;
+      return cloneCamera(liveCamera || currentCamera || initialCamera());
+    }
+
+    function cloneCamera(camera) {
+      return camera ? JSON.parse(JSON.stringify(camera)) : null;
+    }
+
+    function rememberCamera() {
+      const liveCamera = plotEl?._fullLayout?.scene?.camera;
+      if (liveCamera) {
+        currentCamera = cloneCamera(liveCamera);
+      } else if (!currentCamera) {
+        currentCamera = initialCamera();
+      }
     }
 
     function pyResultToJs(pyResult) {
@@ -620,6 +641,7 @@ def generate_terrain(
 
     async function render() {
       if (!isReady) return;
+      rememberCamera();
 
       renderButton.disabled = true;
       randomSeedButton.disabled = true;
@@ -648,6 +670,7 @@ def generate_terrain(
         const trace = {
           type: "surface",
           hoverinfo: "skip",
+          hovertemplate: null,
           x: result.x,
           y: result.y,
           z: result.z,
@@ -682,19 +705,22 @@ def generate_terrain(
           paper_bgcolor: "#ffffff",
           plot_bgcolor: "#ffffff",
           scene: {
-            xaxis: { visible: false, range: [0, 1] },
-            yaxis: { visible: false, range: [0, 1] },
-            zaxis: { visible: false, range: [-1.1, 1.1] },
+            xaxis: { visible: false, range: [0, 1], showspikes: false },
+            yaxis: { visible: false, range: [0, 1], showspikes: false },
+            zaxis: { visible: false, range: [-1.1, 1.1], showspikes: false },
             aspectratio: { x: 1, y: 1, z: 0.42 },
-            camera: cameraForRandomness(p.randomness),
+            camera: getActiveCamera(),
+            dragmode: "turntable",
           },
+          hovermode: false,
+          uirevision: "keep-view",
         };
 
         const config = {
           responsive: true,
           staticPlot: false,
           displaylogo: false,
-          modeBarButtonsToRemove: ["lasso2d", "select2d", "hoverClosest3d"],
+          modeBarButtonsToRemove: ["lasso2d", "select2d", "hoverClosest3d", "resetCameraLastSave3d"],
           toImageButtonOptions: {
             format: "png",
             filename: `iterated-pyramid-terrain-seed-${p.seed}-randomness-${Math.round(p.randomness * 100)}`,
@@ -705,6 +731,7 @@ def generate_terrain(
         };
 
         await Plotly.react("plot", [trace], layout, config);
+        currentCamera = cloneCamera(plotEl?._fullLayout?.scene?.camera);
 
         const metrics = result.metrics;
         metricsEl.innerHTML = `
@@ -766,17 +793,50 @@ def generate_terrain(
       controls.smoothPasses,
       controls.seed,
     ].forEach((control) => {
-      control.addEventListener("change", render);
+      control.addEventListener("change", () => {
+        rememberCamera();
+        render();
+      });
     });
 
-    renderButton.addEventListener("click", render);
+    renderButton.addEventListener("click", () => {
+      rememberCamera();
+      render();
+    });
     randomSeedButton.addEventListener("click", () => {
       controls.seed.value = Math.floor(Math.random() * 999999);
+      rememberCamera();
       render();
     });
 
+    plotEl.addEventListener("plotly_relayout", (eventData) => {
+      if (eventData && eventData["scene.camera"]) {
+        currentCamera = cloneCamera(eventData["scene.camera"]);
+      }
+    });
+
+    plotEl.addEventListener("plotly_buttonclicked", (eventData) => {
+      const buttonName = eventData?.button?.name;
+      if (buttonName === "resetCameraDefault3d") {
+        currentCamera = initialCamera();
+        requestAnimationFrame(() => {
+          Plotly.relayout(plotEl, { "scene.camera": currentCamera });
+        });
+      }
+    });
+
+    if (ruleDetails) {
+      ruleDetails.addEventListener("toggle", () => {
+        requestAnimationFrame(() => {
+          Plotly.Plots.resize(plotEl);
+          rememberCamera();
+          render();
+        });
+      });
+    }
+
     window.addEventListener("resize", () => {
-      Plotly.Plots.resize("plot");
+      Plotly.Plots.resize(plotEl);
     });
 
     initialize();
