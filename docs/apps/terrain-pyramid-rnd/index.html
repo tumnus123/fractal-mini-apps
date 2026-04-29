@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iterated Pyramid Terrain — Fractal Mini-App</title>
+
+  <!--
+    Iterated Pyramid Terrain
+    A GitHub Pages-ready fractal mini-app for The Fractal Nature of Reality — A Primer.
+
+    Framework style:
+    - Static single-page app
+    - Python runs in-browser through Pyodide
+    - Plotly renders the 3D surface
+    - No Flask/server required
+  -->
+
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel-bg: #f7f8fb;
+      --panel-border: #d8dce8;
+      --text: #182033;
+      --muted: #5c667a;
+      --accent: #d9822b;      /* LCARS-ish orange */
+      --accent-2: #5b8def;    /* science-console blue */
+      --accent-3: #c9a0dc;    /* lavender nod */
+      --shadow: rgba(18, 27, 49, 0.12);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    header {
+      padding: 1.1rem 1.25rem 0.7rem;
+      border-bottom: 1px solid var(--panel-border);
+      background: linear-gradient(90deg, rgba(217,130,43,0.12), rgba(91,141,239,0.08));
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2.8vw, 2.2rem);
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      margin: 0.35rem 0 0;
+      max-width: 88rem;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 0.98rem;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(280px, 370px) minmax(0, 1fr);
+      gap: 1rem;
+      padding: 1rem;
+      min-height: calc(100vh - 105px);
+    }
+
+    .panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+      align-self: start;
+    }
+
+    .console-title {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 0.2rem;
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0.13em;
+      color: var(--muted);
+      font-weight: 750;
+    }
+
+    .console-pill {
+      width: 3.6rem;
+      height: 1rem;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .console-pill.blue {
+      background: var(--accent-2);
+    }
+
+    .control-group {
+      padding: 0.85rem;
+      border-radius: 14px;
+      background: #fff;
+      border: 1px solid #e5e8f0;
+    }
+
+    .control-row {
+      display: grid;
+      gap: 0.35rem;
+      margin: 0 0 0.85rem;
+    }
+
+    .control-row:last-child {
+      margin-bottom: 0;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+      font-size: 0.88rem;
+      font-weight: 650;
+    }
+
+    label span.value {
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    input[type="number"], select {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      border-radius: 10px;
+      border: 1px solid var(--panel-border);
+      background: white;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 0.72rem 0.85rem;
+      font-weight: 750;
+      color: white;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 5px 18px rgba(217,130,43,0.24);
+    }
+
+    button.secondary {
+      background: var(--accent-2);
+      box-shadow: 0 5px 18px rgba(91,141,239,0.22);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .readout {
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.42;
+    }
+
+    .plot-shell {
+      display: grid;
+      grid-template-rows: auto minmax(480px, 1fr);
+      overflow: hidden;
+    }
+
+    .plot-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.85rem 1rem;
+      border-bottom: 1px solid var(--panel-border);
+    }
+
+    .plot-toolbar strong {
+      font-size: 0.95rem;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    #plot {
+      width: 100%;
+      height: 100%;
+      min-height: 480px;
+    }
+
+    details {
+      border-top: 1px solid var(--panel-border);
+      padding-top: 0.8rem;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .rule-text {
+      margin-top: 0.65rem;
+      font-size: 0.9rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+      background: #eef1f7;
+      padding: 0.1rem 0.25rem;
+      border-radius: 5px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .plot-shell {
+        grid-template-rows: auto 68vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Iterated Pyramid Terrain</h1>
+    <p>
+      A simple rule builds a perfectly regular fractal surface. Then randomness is introduced into the same rule,
+      transforming mathematical regularity into something that begins to resemble a natural landscape.
+    </p>
+  </header>
+
+  <main>
+    <section class="panel controls" aria-label="Terrain controls">
+      <div>
+        <div class="console-title"><span class="console-pill"></span>Construction Console</div>
+        <div class="control-group">
+          <div class="control-row">
+            <label for="iterations">Iterations <span class="value" id="iterationsValue">4</span></label>
+            <input id="iterations" type="range" min="1" max="6" step="1" value="4" />
+          </div>
+
+          <div class="control-row">
+            <label for="gridSize">Grid Resolution</label>
+            <select id="gridSize">
+              <option value="129">129 × 129 — faster</option>
+              <option value="257" selected>257 × 257 — balanced</option>
+              <option value="513">513 × 513 — detailed</option>
+            </select>
+          </div>
+
+          <div class="control-row">
+            <label for="heightScale">Height Scale <span class="value" id="heightScaleValue">1.00</span></label>
+            <input id="heightScale" type="range" min="0.15" max="2.5" step="0.05" value="1.0" />
+          </div>
+
+          <div class="control-row">
+            <label for="decay">Scale Decay <span class="value" id="decayValue">0.52</span></label>
+            <input id="decay" type="range" min="0.30" max="0.75" step="0.01" value="0.52" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="console-title"><span class="console-pill blue"></span>Randomness Console</div>
+        <div class="control-group">
+          <div class="control-row">
+            <label for="randomness">Overall Randomness <span class="value" id="randomnessValue">0%</span></label>
+            <input id="randomness" type="range" min="0" max="100" step="1" value="0" />
+          </div>
+
+          <div class="control-row">
+            <label for="jitter">Position Jitter <span class="value" id="jitterValue">0%</span></label>
+            <input id="jitter" type="range" min="0" max="100" step="1" value="35" />
+          </div>
+
+          <div class="control-row">
+            <label for="dropout">Skipped Bumps <span class="value" id="dropoutValue">0%</span></label>
+            <input id="dropout" type="range" min="0" max="70" step="1" value="15" />
+          </div>
+
+          <div class="control-row">
+            <label for="inversion">Inverted Bumps <span class="value" id="inversionValue">0%</span></label>
+            <input id="inversion" type="range" min="0" max="60" step="1" value="10" />
+          </div>
+
+          <div class="control-row">
+            <label for="smoothPasses">Softening Passes <span class="value" id="smoothPassesValue">1</span></label>
+            <input id="smoothPasses" type="range" min="0" max="5" step="1" value="1" />
+          </div>
+
+          <div class="control-row">
+            <label for="seed">Seed</label>
+            <input id="seed" type="number" value="42" step="1" />
+          </div>
+        </div>
+      </div>
+
+      <div class="button-row">
+        <button id="renderButton">Render</button>
+        <button id="randomSeedButton" class="secondary">New Seed</button>
+      </div>
+
+      <div class="readout" id="metrics">
+        Loading Python engine…
+      </div>
+
+      <details open>
+        <summary>The simple rule</summary>
+        <div class="rule-text">
+          At each iteration, the app places smaller pyramid-shaped bumps across the surface. In the perfect case,
+          every bump is centered and every height follows the same decay rule. Randomness changes where bumps land,
+          how tall they are, whether some are skipped, and whether some become valleys instead of peaks.
+        </div>
+      </details>
+    </section>
+
+    <section class="panel plot-shell" aria-label="3D surface plot">
+      <div class="plot-toolbar">
+        <strong>Surface Plot</strong>
+        <span class="status" id="status">Initializing…</span>
+      </div>
+      <div id="plot"></div>
+    </section>
+  </main>
+
+  <script type="text/python" id="terrain-python">
+import math
+import random
+
+
+def clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+
+def make_grid(n):
+    xs = [i / (n - 1) for i in range(n)]
+    ys = [i / (n - 1) for i in range(n)]
+    z = [[0.0 for _ in range(n)] for _ in range(n)]
+    return xs, ys, z
+
+
+def add_pyramid(z, xs, ys, cx, cy, radius, height):
+    """
+    Add one square pyramid bump to the heightfield.
+    The pyramid has no overhangs: height decreases linearly with Chebyshev distance from the center.
+    """
+    n = len(xs)
+    min_x = clamp(cx - radius, 0.0, 1.0)
+    max_x = clamp(cx + radius, 0.0, 1.0)
+    min_y = clamp(cy - radius, 0.0, 1.0)
+    max_y = clamp(cy + radius, 0.0, 1.0)
+
+    ix0 = max(0, int(math.floor(min_x * (n - 1))))
+    ix1 = min(n - 1, int(math.ceil(max_x * (n - 1))))
+    iy0 = max(0, int(math.floor(min_y * (n - 1))))
+    iy1 = min(n - 1, int(math.ceil(max_y * (n - 1))))
+
+    if radius <= 0:
+        return
+
+    for j in range(iy0, iy1 + 1):
+        y = ys[j]
+        for i in range(ix0, ix1 + 1):
+            x = xs[i]
+            d = max(abs(x - cx), abs(y - cy)) / radius
+            if d <= 1.0:
+                z[j][i] += height * (1.0 - d)
+
+
+def smooth(z, passes):
+    if passes <= 0:
+        return z
+
+    n = len(z)
+    current = z
+    kernel = [
+        [1, 2, 1],
+        [2, 4, 2],
+        [1, 2, 1],
+    ]
+    ksum = 16.0
+
+    for _ in range(passes):
+        nxt = [[current[j][i] for i in range(n)] for j in range(n)]
+        for j in range(1, n - 1):
+            for i in range(1, n - 1):
+                total = 0.0
+                for dy in range(-1, 2):
+                    for dx in range(-1, 2):
+                        total += kernel[dy + 1][dx + 1] * current[j + dy][i + dx]
+                nxt[j][i] = total / ksum
+        current = nxt
+    return current
+
+
+def normalize(z):
+    flat = [value for row in z for value in row]
+    zmin = min(flat)
+    zmax = max(flat)
+    span = zmax - zmin
+    if span <= 1e-12:
+        return z, zmin, zmax
+    normalized = [[(value - zmin) / span for value in row] for row in z]
+    return normalized, zmin, zmax
+
+
+def generate_terrain(
+    iterations=4,
+    grid_size=257,
+    height_scale=1.0,
+    decay=0.52,
+    randomness=0.0,
+    jitter=0.35,
+    dropout=0.15,
+    inversion=0.10,
+    smooth_passes=1,
+    seed=42,
+):
+    """
+    Build an iterated pyramid terrain.
+
+    Regular mode:
+      Each iteration places a regular lattice of pyramid bumps.
+      Spacing, radius, and height shrink by powers of two / decay.
+
+    Randomized mode:
+      The same rule is followed, but randomness perturbs bump position, height, omission, and sign.
+    """
+    rng = random.Random(int(seed))
+    xs, ys, z = make_grid(int(grid_size))
+
+    r = clamp(float(randomness), 0.0, 1.0)
+    jitter = clamp(float(jitter), 0.0, 1.0)
+    dropout = clamp(float(dropout), 0.0, 1.0)
+    inversion = clamp(float(inversion), 0.0, 1.0)
+
+    bump_count = 0
+    skipped_count = 0
+    inverted_count = 0
+
+    # A broad base pyramid makes the regular construction immediately legible.
+    add_pyramid(z, xs, ys, 0.5, 0.5, 0.50, float(height_scale))
+    bump_count += 1
+
+    for level in range(1, int(iterations) + 1):
+        cells = 2 ** level
+        spacing = 1.0 / cells
+        radius = spacing * 0.46
+        base_height = float(height_scale) * (float(decay) ** level)
+
+        for row in range(cells):
+            for col in range(cells):
+                cx = (col + 0.5) * spacing
+                cy = (row + 0.5) * spacing
+
+                # Randomness is multiplied by each specific behavior's slider.
+                if r > 0 and rng.random() < r * dropout:
+                    skipped_count += 1
+                    continue
+
+                max_shift = spacing * 0.32 * r * jitter
+                if max_shift > 0:
+                    cx += rng.uniform(-max_shift, max_shift)
+                    cy += rng.uniform(-max_shift, max_shift)
+                    cx = clamp(cx, radius, 1.0 - radius)
+                    cy = clamp(cy, radius, 1.0 - radius)
+
+                h_variation = 1.0 + rng.uniform(-0.95, 1.15) * r
+                h = base_height * max(0.05, h_variation)
+
+                if r > 0 and rng.random() < r * inversion:
+                    h *= -1.0
+                    inverted_count += 1
+
+                add_pyramid(z, xs, ys, cx, cy, radius, h)
+                bump_count += 1
+
+    # Softening is display-oriented: it helps late-stage randomized surfaces read as terrain
+    # while keeping the construction rule itself simple.
+    z = smooth(z, int(smooth_passes))
+    z, raw_min, raw_max = normalize(z)
+
+    # Re-center around zero for a more balanced 3D surface.
+    z = [[(value - 0.5) * 2.0 for value in row] for row in z]
+
+    return {
+        "x": xs,
+        "y": ys,
+        "z": z,
+        "metrics": {
+            "bumps": bump_count,
+            "skipped": skipped_count,
+            "inverted": inverted_count,
+            "rawMin": raw_min,
+            "rawMax": raw_max,
+        },
+    }
+  </script>
+
+  <script>
+    let pyodide = null;
+    let generateTerrain = null;
+    let isReady = false;
+
+    const controls = {
+      iterations: document.getElementById("iterations"),
+      gridSize: document.getElementById("gridSize"),
+      heightScale: document.getElementById("heightScale"),
+      decay: document.getElementById("decay"),
+      randomness: document.getElementById("randomness"),
+      jitter: document.getElementById("jitter"),
+      dropout: document.getElementById("dropout"),
+      inversion: document.getElementById("inversion"),
+      smoothPasses: document.getElementById("smoothPasses"),
+      seed: document.getElementById("seed"),
+    };
+
+    const labels = {
+      iterationsValue: document.getElementById("iterationsValue"),
+      heightScaleValue: document.getElementById("heightScaleValue"),
+      decayValue: document.getElementById("decayValue"),
+      randomnessValue: document.getElementById("randomnessValue"),
+      jitterValue: document.getElementById("jitterValue"),
+      dropoutValue: document.getElementById("dropoutValue"),
+      inversionValue: document.getElementById("inversionValue"),
+      smoothPassesValue: document.getElementById("smoothPassesValue"),
+    };
+
+    const statusEl = document.getElementById("status");
+    const metricsEl = document.getElementById("metrics");
+    const renderButton = document.getElementById("renderButton");
+    const randomSeedButton = document.getElementById("randomSeedButton");
+
+    function updateLabels() {
+      labels.iterationsValue.textContent = controls.iterations.value;
+      labels.heightScaleValue.textContent = Number(controls.heightScale.value).toFixed(2);
+      labels.decayValue.textContent = Number(controls.decay.value).toFixed(2);
+      labels.randomnessValue.textContent = `${controls.randomness.value}%`;
+      labels.jitterValue.textContent = `${controls.jitter.value}%`;
+      labels.dropoutValue.textContent = `${Math.round(Number(controls.dropout.value) * Number(controls.randomness.value) / 100)}%`;
+      labels.inversionValue.textContent = `${Math.round(Number(controls.inversion.value) * Number(controls.randomness.value) / 100)}%`;
+      labels.smoothPassesValue.textContent = controls.smoothPasses.value;
+    }
+
+    function getParams() {
+      return {
+        iterations: Number(controls.iterations.value),
+        grid_size: Number(controls.gridSize.value),
+        height_scale: Number(controls.heightScale.value),
+        decay: Number(controls.decay.value),
+        randomness: Number(controls.randomness.value) / 100,
+        jitter: Number(controls.jitter.value) / 100,
+        dropout: Number(controls.dropout.value) / 100,
+        inversion: Number(controls.inversion.value) / 100,
+        smooth_passes: Number(controls.smoothPasses.value),
+        seed: Number(controls.seed.value),
+      };
+    }
+
+    function cameraForRandomness(randomness) {
+      const eyeZ = randomness > 0.65 ? 0.88 : 0.74;
+      return {
+        eye: { x: 1.42, y: 1.55, z: eyeZ },
+        center: { x: 0, y: 0, z: 0 },
+      };
+    }
+
+    function pyResultToJs(pyResult) {
+      // Pyodide proxy objects provide toJs(); plain JS objects do not.
+      // This guard keeps Canvas Preview and GitHub Pages happy across Pyodide return-type behavior.
+      if (pyResult && typeof pyResult.toJs === "function") {
+        const converted = pyResult.toJs({ dict_converter: Object.fromEntries });
+        if (typeof pyResult.destroy === "function") {
+          pyResult.destroy();
+        }
+        return converted;
+      }
+      return pyResult;
+    }
+
+    async function render() {
+      if (!isReady) return;
+
+      renderButton.disabled = true;
+      randomSeedButton.disabled = true;
+      statusEl.textContent = "Generating surface…";
+      updateLabels();
+
+      // Let the browser paint button-disabled state before compute begins.
+      await new Promise(requestAnimationFrame);
+
+      try {
+        const p = getParams();
+        const pyResult = generateTerrain(
+          p.iterations,
+          p.grid_size,
+          p.height_scale,
+          p.decay,
+          p.randomness,
+          p.jitter,
+          p.dropout,
+          p.inversion,
+          p.smooth_passes,
+          p.seed
+        );
+        const result = pyResultToJs(pyResult);
+
+        const trace = {
+          type: "surface",
+          x: result.x,
+          y: result.y,
+          z: result.z,
+          colorscale: [
+            [0.00, "#435f3b"],
+            [0.28, "#6f8750"],
+            [0.55, "#a99d75"],
+            [0.78, "#c5b59b"],
+            [1.00, "#f3f0df"]
+          ],
+          showscale: false,
+          contours: {
+            z: {
+              show: true,
+              usecolormap: true,
+              highlightcolor: "#ffffff",
+              project: { z: false }
+            }
+          },
+          lighting: {
+            ambient: 0.54,
+            diffuse: 0.72,
+            roughness: 0.78,
+            specular: 0.08,
+          },
+          lightposition: { x: 80, y: -120, z: 220 },
+        };
+
+        const layout = {
+          autosize: true,
+          margin: { l: 0, r: 0, t: 0, b: 0 },
+          paper_bgcolor: "#ffffff",
+          plot_bgcolor: "#ffffff",
+          scene: {
+            xaxis: { visible: false, range: [0, 1] },
+            yaxis: { visible: false, range: [0, 1] },
+            zaxis: { visible: false, range: [-1.1, 1.1] },
+            aspectratio: { x: 1, y: 1, z: 0.42 },
+            camera: cameraForRandomness(p.randomness),
+          },
+        };
+
+        const config = {
+          responsive: true,
+          displaylogo: false,
+          modeBarButtonsToRemove: ["lasso2d", "select2d"],
+          toImageButtonOptions: {
+            format: "png",
+            filename: `iterated-pyramid-terrain-seed-${p.seed}-randomness-${Math.round(p.randomness * 100)}`,
+            height: 1200,
+            width: 1600,
+            scale: 2,
+          },
+        };
+
+        await Plotly.react("plot", [trace], layout, config);
+
+        const metrics = result.metrics;
+        metricsEl.innerHTML = `
+          <strong>Generated:</strong> ${metrics.bumps.toLocaleString()} pyramid bumps<br />
+          <strong>Skipped:</strong> ${metrics.skipped.toLocaleString()} ·
+          <strong>Inverted:</strong> ${metrics.inverted.toLocaleString()}<br />
+          <strong>Tip:</strong> use Plotly’s camera controls to compose screenshots for the chapter.
+        `;
+        statusEl.textContent = "Ready";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Render failed";
+        metricsEl.textContent = `Render failed: ${err.message || err}`;
+      } finally {
+        renderButton.disabled = false;
+        randomSeedButton.disabled = false;
+      }
+    }
+
+    async function initialize() {
+      renderButton.disabled = true;
+      randomSeedButton.disabled = true;
+      updateLabels();
+
+      try {
+        statusEl.textContent = "Loading Python engine…";
+        pyodide = await loadPyodide();
+        const pythonCode = document.getElementById("terrain-python").textContent;
+        pyodide.runPython(pythonCode);
+        generateTerrain = pyodide.globals.get("generate_terrain");
+        isReady = true;
+        statusEl.textContent = "Ready";
+        metricsEl.textContent = "Python engine loaded. Render the perfectly regular surface, then increase randomness for organic variants.";
+        await render();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Initialization failed";
+        metricsEl.textContent = `Initialization failed: ${err.message || err}`;
+      } finally {
+        renderButton.disabled = false;
+        randomSeedButton.disabled = false;
+      }
+    }
+
+    Object.values(controls).forEach((control) => {
+      control.addEventListener("input", updateLabels);
+    });
+
+    // Render on release/change instead of every slider tick, keeping the app responsive.
+    [
+      controls.iterations,
+      controls.gridSize,
+      controls.heightScale,
+      controls.decay,
+      controls.randomness,
+      controls.jitter,
+      controls.dropout,
+      controls.inversion,
+      controls.smoothPasses,
+      controls.seed,
+    ].forEach((control) => {
+      control.addEventListener("change", render);
+    });
+
+    renderButton.addEventListener("click", render);
+    randomSeedButton.addEventListener("click", () => {
+      controls.seed.value = Math.floor(Math.random() * 999999);
+      render();
+    });
+
+    window.addEventListener("resize", () => {
+      Plotly.Plots.resize("plot");
+    });
+
+    initialize();
+  </script>
+</body>
+</html>
