@@ -192,8 +192,9 @@
 
     .plot-shell {
       display: grid;
-      grid-template-rows: auto minmax(480px, 1fr);
+      grid-template-rows: auto minmax(0, 1fr) auto;
       overflow: hidden;
+      max-height: calc(100vh - 137px);
     }
 
     .plot-toolbar {
@@ -217,12 +218,12 @@
     #plot {
       width: 100%;
       height: 100%;
-      min-height: 480px;
+      min-height: 320px;
     }
-
     details {
       border-top: 1px solid var(--panel-border);
-      padding-top: 0.8rem;
+      padding: 0.8rem 1rem 1rem;
+      background: #fff;
     }
 
     summary {
@@ -252,7 +253,8 @@
       }
 
       .plot-shell {
-        grid-template-rows: auto 68vh;
+        grid-template-rows: auto 58vh auto;
+        max-height: none;
       }
     }
   </style>
@@ -340,15 +342,6 @@
       <div class="readout" id="metrics">
         Loading Python engine…
       </div>
-
-      <details open>
-        <summary>The simple rule</summary>
-        <div class="rule-text">
-          At each iteration, the app places smaller pyramid-shaped bumps across the surface. In the perfect case,
-          every bump is centered and every height follows the same decay rule. Randomness changes where bumps land,
-          how tall they are, whether some are skipped, and whether some become valleys instead of peaks.
-        </div>
-      </details>
     </section>
 
     <section class="panel plot-shell" aria-label="3D surface plot">
@@ -357,6 +350,15 @@
         <span class="status" id="status">Initializing…</span>
       </div>
       <div id="plot"></div>
+
+      <details>
+        <summary>The simple rule</summary>
+        <div class="rule-text">
+          At each iteration, the app places smaller pyramid-shaped bumps across the surface. In the perfect case,
+          every bump is centered and every height follows the same decay rule. Randomness changes where bumps land,
+          how tall they are, whether some are skipped, and whether some become valleys instead of peaks.
+        </div>
+      </details>
     </section>
   </main>
 
@@ -595,10 +597,11 @@ def generate_terrain(
     }
 
     function cameraForRandomness(randomness) {
-      const eyeZ = randomness > 0.65 ? 0.88 : 0.74;
+      // Near-nadir view: mostly top-down, with a slight oblique angle so relief remains readable.
       return {
-        eye: { x: 1.42, y: 1.55, z: eyeZ },
+        eye: { x: 0.12, y: 0.16, z: 2.35 },
         center: { x: 0, y: 0, z: 0 },
+        up: { x: 0, y: 1, z: 0 },
       };
     }
 
@@ -644,6 +647,7 @@ def generate_terrain(
 
         const trace = {
           type: "surface",
+          hoverinfo: "skip",
           x: result.x,
           y: result.y,
           z: result.z,
@@ -688,8 +692,9 @@ def generate_terrain(
 
         const config = {
           responsive: true,
+          staticPlot: false,
           displaylogo: false,
-          modeBarButtonsToRemove: ["lasso2d", "select2d"],
+          modeBarButtonsToRemove: ["lasso2d", "select2d", "hoverClosest3d"],
           toImageButtonOptions: {
             format: "png",
             filename: `iterated-pyramid-terrain-seed-${p.seed}-randomness-${Math.round(p.randomness * 100)}`,
