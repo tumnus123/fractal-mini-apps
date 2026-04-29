@@ -136,6 +136,85 @@
       font-weight: 650;
     }
 
+    .label-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+
+    .info-icon {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      border: 1px solid var(--panel-border);
+      color: var(--muted);
+      background: #fff;
+      font-size: 0.68rem;
+      font-weight: 800;
+      line-height: 1;
+      cursor: help;
+      flex: 0 0 auto;
+    }
+
+    .info-icon::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 0.55rem);
+      transform: translateX(-50%);
+      width: max-content;
+      max-width: 230px;
+      padding: 0.55rem 0.65rem;
+      border-radius: 10px;
+      background: #182033;
+      color: #fff;
+      font-size: 0.76rem;
+      font-weight: 600;
+      line-height: 1.35;
+      letter-spacing: 0;
+      text-transform: none;
+      box-shadow: 0 10px 26px rgba(18, 27, 49, 0.24);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+      z-index: 20;
+    }
+
+    .info-icon::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 0.18rem);
+      transform: translateX(-50%);
+      border: 0.38rem solid transparent;
+      border-top-color: #182033;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+      z-index: 21;
+    }
+
+    .info-icon:hover,
+    .info-icon:focus-visible {
+      color: var(--text);
+      border-color: var(--accent-2);
+    }
+
+    .info-icon:hover::after,
+    .info-icon:focus-visible::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-2px);
+    }
+
+    .info-icon:hover::before,
+    .info-icon:focus-visible::before {
+      opacity: 1;
+    }
+
     label span.value {
       font-variant-numeric: tabular-nums;
       color: var(--muted);
@@ -145,6 +224,15 @@
     input[type="range"] {
       width: 100%;
       accent-color: var(--accent);
+    }
+
+    input:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    .control-row:has(input:disabled) label {
+      opacity: 0.55;
     }
 
     input[type="number"], select {
@@ -274,12 +362,12 @@
         <div class="console-title"><span class="console-pill"></span>Construction Console</div>
         <div class="control-group">
           <div class="control-row">
-            <label for="iterations">Iterations <span class="value" id="iterationsValue">4</span></label>
+            <label for="iterations"><span class="label-text">Iterations <span class="info-icon" tabindex="0" aria-label="Iterations information" data-tooltip="How many times the pyramid-bump rule is repeated at smaller scales.">i</span></span><span class="value" id="iterationsValue">4</span></label>
             <input id="iterations" type="range" min="1" max="6" step="1" value="4" />
           </div>
 
           <div class="control-row">
-            <label for="gridSize">Grid Resolution</label>
+            <label for="gridSize"><span class="label-text">Grid Resolution <span class="info-icon" tabindex="0" aria-label="Grid Resolution information" data-tooltip="Number of height samples used to draw the surface. Higher values show more detail but render more slowly.">i</span></span></label>
             <select id="gridSize">
               <option value="129">129 × 129 — faster</option>
               <option value="257" selected>257 × 257 — balanced</option>
@@ -288,12 +376,12 @@
           </div>
 
           <div class="control-row">
-            <label for="heightScale">Height Scale <span class="value" id="heightScaleValue">1.00</span></label>
+            <label for="heightScale"><span class="label-text">Height Scale <span class="info-icon" tabindex="0" aria-label="Height Scale information" data-tooltip="Overall vertical exaggeration of the pyramid terrain.">i</span></span><span class="value" id="heightScaleValue">1.00</span></label>
             <input id="heightScale" type="range" min="0.15" max="2.5" step="0.05" value="1.0" />
           </div>
 
           <div class="control-row">
-            <label for="decay">Scale Decay <span class="value" id="decayValue">0.52</span></label>
+            <label for="decay"><span class="label-text">Scale Decay <span class="info-icon" tabindex="0" aria-label="Scale Decay information" data-tooltip="How quickly smaller pyramid bumps shrink in height from one iteration to the next.">i</span></span><span class="value" id="decayValue">0.52</span></label>
             <input id="decay" type="range" min="0.30" max="0.75" step="0.01" value="0.52" />
           </div>
         </div>
@@ -303,32 +391,32 @@
         <div class="console-title"><span class="console-pill blue"></span>Randomness Console</div>
         <div class="control-group">
           <div class="control-row">
-            <label for="randomness">Overall Randomness <span class="value" id="randomnessValue">0%</span></label>
+            <label for="randomness"><span class="label-text">Overall Randomness <span class="info-icon" tabindex="0" aria-label="Overall Randomness information" data-tooltip="Master control for irregularity. At 0%, the construction is perfectly regular.">i</span></span><span class="value" id="randomnessValue">0%</span></label>
             <input id="randomness" type="range" min="0" max="100" step="1" value="0" />
           </div>
 
           <div class="control-row">
-            <label for="jitter">Position Jitter <span class="value" id="jitterValue">0%</span></label>
+            <label for="jitter"><span class="label-text">Position Jitter <span class="info-icon" tabindex="0" aria-label="Position Jitter information" data-tooltip="Moves bump centers away from their perfect grid positions. Scaled by Overall Randomness.">i</span></span><span class="value" id="jitterValue">0%</span></label>
             <input id="jitter" type="range" min="0" max="100" step="1" value="35" />
           </div>
 
           <div class="control-row">
-            <label for="dropout">Skipped Bumps <span class="value" id="dropoutValue">0%</span></label>
+            <label for="dropout"><span class="label-text">Skipped Bumps <span class="info-icon" tabindex="0" aria-label="Skipped Bumps information" data-tooltip="Chance that a bump is omitted, leaving gaps in the regular pattern. Scaled by Overall Randomness.">i</span></span><span class="value" id="dropoutValue">0%</span></label>
             <input id="dropout" type="range" min="0" max="70" step="1" value="15" />
           </div>
 
           <div class="control-row">
-            <label for="inversion">Inverted Bumps <span class="value" id="inversionValue">0%</span></label>
+            <label for="inversion"><span class="label-text">Inverted Bumps <span class="info-icon" tabindex="0" aria-label="Inverted Bumps information" data-tooltip="Chance that a peak becomes a valley instead. Scaled by Overall Randomness.">i</span></span><span class="value" id="inversionValue">0%</span></label>
             <input id="inversion" type="range" min="0" max="60" step="1" value="10" />
           </div>
 
           <div class="control-row">
-            <label for="smoothPasses">Softening Passes <span class="value" id="smoothPassesValue">1</span></label>
+            <label for="smoothPasses"><span class="label-text">Softening Passes <span class="info-icon" tabindex="0" aria-label="Softening Passes information" data-tooltip="Applies gentle smoothing after construction so randomized surfaces look more terrain-like.">i</span></span><span class="value" id="smoothPassesValue">1</span></label>
             <input id="smoothPasses" type="range" min="0" max="5" step="1" value="1" />
           </div>
 
           <div class="control-row">
-            <label for="seed">Seed</label>
+            <label for="seed"><span class="label-text">Seed <span class="info-icon" tabindex="0" aria-label="Seed information" data-tooltip="Sets the random sequence. The same seed and settings reproduce the same surface.">i</span></span></label>
             <input id="seed" type="number" value="42" step="1" />
           </div>
         </div>
@@ -574,14 +662,21 @@ def generate_terrain(
     const randomSeedButton = document.getElementById("randomSeedButton");
 
     function updateLabels() {
+      const randomnessPercent = Number(controls.randomness.value);
+      const randomnessActive = randomnessPercent > 0;
+
       labels.iterationsValue.textContent = controls.iterations.value;
       labels.heightScaleValue.textContent = Number(controls.heightScale.value).toFixed(2);
       labels.decayValue.textContent = Number(controls.decay.value).toFixed(2);
       labels.randomnessValue.textContent = `${controls.randomness.value}%`;
-      labels.jitterValue.textContent = `${controls.jitter.value}%`;
-      labels.dropoutValue.textContent = `${Math.round(Number(controls.dropout.value) * Number(controls.randomness.value) / 100)}%`;
-      labels.inversionValue.textContent = `${Math.round(Number(controls.inversion.value) * Number(controls.randomness.value) / 100)}%`;
+      labels.jitterValue.textContent = `${Math.round(Number(controls.jitter.value) * randomnessPercent / 100)}%`;
+      labels.dropoutValue.textContent = `${Math.round(Number(controls.dropout.value) * randomnessPercent / 100)}%`;
+      labels.inversionValue.textContent = `${Math.round(Number(controls.inversion.value) * randomnessPercent / 100)}%`;
       labels.smoothPassesValue.textContent = controls.smoothPasses.value;
+
+      controls.jitter.disabled = !randomnessActive;
+      controls.dropout.disabled = !randomnessActive;
+      controls.inversion.disabled = !randomnessActive;
     }
 
     function getParams() {
