@@ -245,16 +245,21 @@
       font-size: 0.95rem;
     }
 
-    .button-row {
+    .seed-row {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.65rem;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0.55rem;
+      align-items: center;
+    }
+
+    .seed-row input {
+      min-width: 0;
     }
 
     button {
       border: 0;
       border-radius: 999px;
-      padding: 0.72rem 0.85rem;
+      padding: 0.55rem 0.8rem;
       font-weight: 750;
       color: white;
       background: var(--accent);
@@ -417,14 +422,12 @@
 
           <div class="control-row">
             <label for="seed"><span class="label-text">Seed <span class="info-icon" tabindex="0" aria-label="Seed information" data-tooltip="Sets the random sequence. The same seed and settings reproduce the same surface.">i</span></span></label>
-            <input id="seed" type="number" value="42" step="1" />
+            <div class="seed-row">
+              <input id="seed" type="number" value="42" step="1" />
+              <button id="randomSeedButton" class="secondary" type="button">New Seed</button>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div class="button-row">
-        <button id="renderButton">Render</button>
-        <button id="randomSeedButton" class="secondary">New Seed</button>
       </div>
 
       <div class="readout" id="metrics">
@@ -658,7 +661,6 @@ def generate_terrain(
 
     const statusEl = document.getElementById("status");
     const metricsEl = document.getElementById("metrics");
-    const renderButton = document.getElementById("renderButton");
     const randomSeedButton = document.getElementById("randomSeedButton");
 
     function updateLabels() {
@@ -737,8 +739,6 @@ def generate_terrain(
     async function render() {
       if (!isReady) return;
       rememberCamera();
-
-      renderButton.disabled = true;
       randomSeedButton.disabled = true;
       statusEl.textContent = "Generating surface…";
       updateLabels();
@@ -764,27 +764,30 @@ def generate_terrain(
 
         const trace = {
           type: "surface",
-          hoverinfo: "skip",
+          hoverinfo: "none",
           hovertemplate: null,
           x: result.x,
           y: result.y,
           z: result.z,
           colorscale: [
-            [0.00, "#435f3b"],
-            [0.28, "#6f8750"],
-            [0.55, "#a99d75"],
-            [0.78, "#c5b59b"],
-            [1.00, "#f3f0df"]
+            [0.00, "#0b2a53"],  // deep ocean
+            [0.08, "#1f5f9b"],  // mid ocean
+            [0.16, "#6fb6d9"],  // shallow ocean
+            [0.21, "#d8c08a"],  // narrow beach / shoreline
+            [0.58, "#88b66b"],  // broad lowlands
+            [0.72, "#356b43"],  // coniferous forest zone
+            [0.82, "#8b7a62"],  // rocky highlands
+            [1.00, "#e8e3d8"]   // broader pale mountaintops
           ],
           showscale: false,
-          contours: {
-            z: {
-              show: true,
-              usecolormap: true,
-              highlightcolor: "#ffffff",
-              project: { z: false }
-            }
-          },
+          // contours: {
+          //   z: {
+          //     show: true,
+          //     usecolormap: true,
+          //     highlightcolor: "#ffffff",
+          //     project: { z: false }
+          //   }
+          // },
           lighting: {
             ambient: 0.54,
             diffuse: 0.72,
@@ -800,9 +803,9 @@ def generate_terrain(
           paper_bgcolor: "#ffffff",
           plot_bgcolor: "#ffffff",
           scene: {
-            xaxis: { visible: false, range: [0, 1], showspikes: false },
-            yaxis: { visible: false, range: [0, 1], showspikes: false },
-            zaxis: { visible: false, range: [-1.1, 1.1], showspikes: false },
+            xaxis: { visible: false, range: [0, 1], showspikes: false, spikesides: false },
+            yaxis: { visible: false, range: [0, 1], showspikes: false, spikesides: false },
+            zaxis: { visible: false, range: [-1.1, 1.1], showspikes: false, spikesides: false },
             aspectratio: { x: 1, y: 1, z: 0.42 },
             camera: getActiveCamera(),
             dragmode: "turntable",
@@ -841,13 +844,11 @@ def generate_terrain(
         statusEl.textContent = "Render failed";
         metricsEl.textContent = `Render failed: ${err.message || err}`;
       } finally {
-        renderButton.disabled = false;
         randomSeedButton.disabled = false;
       }
     }
 
     async function initialize() {
-      renderButton.disabled = true;
       randomSeedButton.disabled = true;
       updateLabels();
 
@@ -866,7 +867,6 @@ def generate_terrain(
         statusEl.textContent = "Initialization failed";
         metricsEl.textContent = `Initialization failed: ${err.message || err}`;
       } finally {
-        renderButton.disabled = false;
         randomSeedButton.disabled = false;
       }
     }
@@ -892,11 +892,6 @@ def generate_terrain(
         rememberCamera();
         render();
       });
-    });
-
-    renderButton.addEventListener("click", () => {
-      rememberCamera();
-      render();
     });
     randomSeedButton.addEventListener("click", () => {
       controls.seed.value = Math.floor(Math.random() * 999999);
