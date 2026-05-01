@@ -226,6 +226,10 @@
       accent-color: var(--accent);
     }
 
+    input[type="range"].slider-accent-2 {
+      accent-color: var(--accent-2);
+    }
+
     input:disabled {
       opacity: 0.42;
       cursor: not-allowed;
@@ -265,6 +269,7 @@
       background: var(--accent);
       cursor: pointer;
       box-shadow: 0 5px 18px rgba(217,130,43,0.24);
+      white-space: nowrap;
     }
 
     button.secondary {
@@ -313,6 +318,7 @@
       height: 100%;
       min-height: 320px;
     }
+
     details {
       border-top: 1px solid var(--panel-border);
       padding: 0.8rem 1rem 1rem;
@@ -364,11 +370,11 @@
   <main>
     <section class="panel controls" aria-label="Terrain controls">
       <div>
-        <div class="console-title"><span class="console-pill"></span>Construction Console</div>
+        <div class="console-title"><span class="console-pill blue"></span>Construction Console</div>
         <div class="control-group">
           <div class="control-row">
             <label for="iterations"><span class="label-text">Iterations <span class="info-icon" tabindex="0" aria-label="Iterations information" data-tooltip="How many times the pyramid-bump rule is repeated at smaller scales.">i</span></span><span class="value" id="iterationsValue">4</span></label>
-            <input id="iterations" type="range" min="1" max="6" step="1" value="4" />
+            <input id="iterations" class="slider-accent-2" type="range" min="1" max="6" step="1" value="4" />
           </div>
 
           <div class="control-row">
@@ -382,18 +388,18 @@
 
           <div class="control-row">
             <label for="heightScale"><span class="label-text">Height Scale <span class="info-icon" tabindex="0" aria-label="Height Scale information" data-tooltip="Overall vertical exaggeration of the pyramid terrain.">i</span></span><span class="value" id="heightScaleValue">1.00</span></label>
-            <input id="heightScale" type="range" min="0.15" max="2.5" step="0.05" value="1.0" />
+            <input id="heightScale" class="slider-accent-2" type="range" min="0.15" max="2.5" step="0.05" value="1.0" />
           </div>
 
           <div class="control-row">
             <label for="decay"><span class="label-text">Scale Decay <span class="info-icon" tabindex="0" aria-label="Scale Decay information" data-tooltip="How quickly smaller pyramid bumps shrink in height from one iteration to the next.">i</span></span><span class="value" id="decayValue">0.52</span></label>
-            <input id="decay" type="range" min="0.30" max="0.75" step="0.01" value="0.52" />
+            <input id="decay" class="slider-accent-2" type="range" min="0.30" max="0.75" step="0.01" value="0.52" />
           </div>
         </div>
       </div>
 
       <div>
-        <div class="console-title"><span class="console-pill blue"></span>Randomness Console</div>
+        <div class="console-title"><span class="console-pill"></span>Randomness Console</div>
         <div class="control-group">
           <div class="control-row">
             <label for="randomness"><span class="label-text">Overall Randomness <span class="info-icon" tabindex="0" aria-label="Overall Randomness information" data-tooltip="Master control for irregularity. At 0%, the construction is perfectly regular.">i</span></span><span class="value" id="randomnessValue">0%</span></label>
@@ -424,7 +430,7 @@
             <label for="seed"><span class="label-text">Seed <span class="info-icon" tabindex="0" aria-label="Seed information" data-tooltip="Sets the random sequence. The same seed and settings reproduce the same surface.">i</span></span></label>
             <div class="seed-row">
               <input id="seed" type="number" value="42" step="1" />
-              <button id="randomSeedButton" class="secondary" type="button">New Seed</button>
+              <button id="randomSeedButton" type="button">New Seed</button>
             </div>
           </div>
         </div>
@@ -569,14 +575,15 @@ def generate_terrain(
     inverted_count = 0
 
     # A broad base pyramid makes the regular construction immediately legible.
-    add_pyramid(z, xs, ys, 0.5, 0.5, 0.50, float(height_scale))
+    # Height scale is applied later, after normalization, so it changes visible vertical exaggeration.
+    add_pyramid(z, xs, ys, 0.5, 0.5, 0.50, 1.0)
     bump_count += 1
 
     for level in range(1, int(iterations) + 1):
         cells = 2 ** level
         spacing = 1.0 / cells
         radius = spacing * 0.46
-        base_height = float(height_scale) * (float(decay) ** level)
+        base_height = float(decay) ** level
 
         for row in range(cells):
             for col in range(cells):
@@ -610,7 +617,8 @@ def generate_terrain(
     z = smooth(z, int(smooth_passes))
     z, raw_min, raw_max = normalize(z)
 
-    # Re-center around zero for a more balanced 3D surface.
+    # Re-center around zero for a balanced surface.
+    # Keep this normalized base surface separate from visual height exaggeration.
     z = [[(value - 0.5) * 2.0 for value in row] for row in z]
 
     return {
@@ -628,308 +636,425 @@ def generate_terrain(
   </script>
 
   <script>
-    let pyodide = null;
-    let generateTerrain = null;
-    let isReady = false;
-    let currentCamera = null;
-    const plotEl = document.getElementById("plot");
-    const ruleDetails = document.querySelector(".plot-shell details");
+    (() => {
+      "use strict";
 
-    const controls = {
-      iterations: document.getElementById("iterations"),
-      gridSize: document.getElementById("gridSize"),
-      heightScale: document.getElementById("heightScale"),
-      decay: document.getElementById("decay"),
-      randomness: document.getElementById("randomness"),
-      jitter: document.getElementById("jitter"),
-      dropout: document.getElementById("dropout"),
-      inversion: document.getElementById("inversion"),
-      smoothPasses: document.getElementById("smoothPasses"),
-      seed: document.getElementById("seed"),
-    };
+      let pyodide = null;
+      let generateTerrain = null;
+      let isReady = false;
+      let currentCamera = null;
+      let renderSerial = 0;
 
-    const labels = {
-      iterationsValue: document.getElementById("iterationsValue"),
-      heightScaleValue: document.getElementById("heightScaleValue"),
-      decayValue: document.getElementById("decayValue"),
-      randomnessValue: document.getElementById("randomnessValue"),
-      jitterValue: document.getElementById("jitterValue"),
-      dropoutValue: document.getElementById("dropoutValue"),
-      inversionValue: document.getElementById("inversionValue"),
-      smoothPassesValue: document.getElementById("smoothPassesValue"),
-    };
+      const requiredIds = [
+        "plot",
+        "iterations",
+        "gridSize",
+        "heightScale",
+        "decay",
+        "randomness",
+        "jitter",
+        "dropout",
+        "inversion",
+        "smoothPasses",
+        "seed",
+        "iterationsValue",
+        "heightScaleValue",
+        "decayValue",
+        "randomnessValue",
+        "jitterValue",
+        "dropoutValue",
+        "inversionValue",
+        "smoothPassesValue",
+        "status",
+        "metrics",
+        "randomSeedButton",
+        "terrain-python"
+      ];
 
-    const statusEl = document.getElementById("status");
-    const metricsEl = document.getElementById("metrics");
-    const randomSeedButton = document.getElementById("randomSeedButton");
-
-    function updateLabels() {
-      const randomnessPercent = Number(controls.randomness.value);
-      const randomnessActive = randomnessPercent > 0;
-
-      labels.iterationsValue.textContent = controls.iterations.value;
-      labels.heightScaleValue.textContent = Number(controls.heightScale.value).toFixed(2);
-      labels.decayValue.textContent = Number(controls.decay.value).toFixed(2);
-      labels.randomnessValue.textContent = `${controls.randomness.value}%`;
-      labels.jitterValue.textContent = `${Math.round(Number(controls.jitter.value) * randomnessPercent / 100)}%`;
-      labels.dropoutValue.textContent = `${Math.round(Number(controls.dropout.value) * randomnessPercent / 100)}%`;
-      labels.inversionValue.textContent = `${Math.round(Number(controls.inversion.value) * randomnessPercent / 100)}%`;
-      labels.smoothPassesValue.textContent = controls.smoothPasses.value;
-
-      controls.jitter.disabled = !randomnessActive;
-      controls.dropout.disabled = !randomnessActive;
-      controls.inversion.disabled = !randomnessActive;
-    }
-
-    function getParams() {
-      return {
-        iterations: Number(controls.iterations.value),
-        grid_size: Number(controls.gridSize.value),
-        height_scale: Number(controls.heightScale.value),
-        decay: Number(controls.decay.value),
-        randomness: Number(controls.randomness.value) / 100,
-        jitter: Number(controls.jitter.value) / 100,
-        dropout: Number(controls.dropout.value) / 100,
-        inversion: Number(controls.inversion.value) / 100,
-        smooth_passes: Number(controls.smoothPasses.value),
-        seed: Number(controls.seed.value),
-      };
-    }
-
-    function initialCamera() {
-      // Near-nadir view: mostly top-down, with a slight oblique angle so relief remains readable.
-      return {
-        eye: { x: 0.12, y: 0.16, z: 2.35 },
-        center: { x: 0, y: 0, z: 0 },
-        up: { x: 0, y: 1, z: 0 },
-      };
-    }
-
-    function getActiveCamera() {
-      const liveCamera = plotEl?._fullLayout?.scene?.camera;
-      return cloneCamera(liveCamera || currentCamera || initialCamera());
-    }
-
-    function cloneCamera(camera) {
-      return camera ? JSON.parse(JSON.stringify(camera)) : null;
-    }
-
-    function rememberCamera() {
-      const liveCamera = plotEl?._fullLayout?.scene?.camera;
-      if (liveCamera) {
-        currentCamera = cloneCamera(liveCamera);
-      } else if (!currentCamera) {
-        currentCamera = initialCamera();
-      }
-    }
-
-    function pyResultToJs(pyResult) {
-      // Pyodide proxy objects provide toJs(); plain JS objects do not.
-      // This guard keeps Canvas Preview and GitHub Pages happy across Pyodide return-type behavior.
-      if (pyResult && typeof pyResult.toJs === "function") {
-        const converted = pyResult.toJs({ dict_converter: Object.fromEntries });
-        if (typeof pyResult.destroy === "function") {
-          pyResult.destroy();
+      function byId(id) {
+        const element = document.getElementById(id);
+        if (!element) {
+          throw new Error(`Missing required DOM element: #${id}`);
         }
-        return converted;
+        return element;
       }
-      return pyResult;
-    }
 
-    async function render() {
-      if (!isReady) return;
-      rememberCamera();
-      randomSeedButton.disabled = true;
-      statusEl.textContent = "Generating surface…";
-      updateLabels();
-
-      // Let the browser paint button-disabled state before compute begins.
-      await new Promise(requestAnimationFrame);
-
-      try {
-        const p = getParams();
-        const pyResult = generateTerrain(
-          p.iterations,
-          p.grid_size,
-          p.height_scale,
-          p.decay,
-          p.randomness,
-          p.jitter,
-          p.dropout,
-          p.inversion,
-          p.smooth_passes,
-          p.seed
-        );
-        const result = pyResultToJs(pyResult);
-
-        const trace = {
-          type: "surface",
-          hoverinfo: "none",
-          hovertemplate: null,
-          x: result.x,
-          y: result.y,
-          z: result.z,
-          colorscale: [
-            [0.00, "#0b2a53"],  // deep ocean
-            [0.08, "#1f5f9b"],  // mid ocean
-            [0.16, "#6fb6d9"],  // shallow ocean
-            [0.21, "#d8c08a"],  // narrow beach / shoreline
-            [0.58, "#88b66b"],  // broad lowlands
-            [0.72, "#356b43"],  // coniferous forest zone
-            [0.82, "#8b7a62"],  // rocky highlands
-            [1.00, "#e8e3d8"]   // broader pale mountaintops
-          ],
-          showscale: false,
-          // contours: {
-          //   z: {
-          //     show: true,
-          //     usecolormap: true,
-          //     highlightcolor: "#ffffff",
-          //     project: { z: false }
-          //   }
-          // },
-          lighting: {
-            ambient: 0.54,
-            diffuse: 0.72,
-            roughness: 0.78,
-            specular: 0.08,
-          },
-          lightposition: { x: 80, y: -120, z: 220 },
-        };
-
-        const layout = {
-          autosize: true,
-          margin: { l: 0, r: 0, t: 0, b: 0 },
-          paper_bgcolor: "#ffffff",
-          plot_bgcolor: "#ffffff",
-          scene: {
-            xaxis: { visible: false, range: [0, 1], showspikes: false, spikesides: false },
-            yaxis: { visible: false, range: [0, 1], showspikes: false, spikesides: false },
-            zaxis: { visible: false, range: [-1.1, 1.1], showspikes: false, spikesides: false },
-            aspectratio: { x: 1, y: 1, z: 0.42 },
-            camera: getActiveCamera(),
-            dragmode: "turntable",
-          },
-          hovermode: false,
-          uirevision: "keep-view",
-        };
-
-        const config = {
-          responsive: true,
-          staticPlot: false,
-          displaylogo: false,
-          modeBarButtonsToRemove: ["lasso2d", "select2d", "hoverClosest3d", "resetCameraLastSave3d"],
-          toImageButtonOptions: {
-            format: "png",
-            filename: `iterated-pyramid-terrain-seed-${p.seed}-randomness-${Math.round(p.randomness * 100)}`,
-            height: 1200,
-            width: 1600,
-            scale: 2,
-          },
-        };
-
-        await Plotly.react("plot", [trace], layout, config);
-        currentCamera = cloneCamera(plotEl?._fullLayout?.scene?.camera);
-
-        const metrics = result.metrics;
-        metricsEl.innerHTML = `
-          <strong>Generated:</strong> ${metrics.bumps.toLocaleString()} pyramid bumps<br />
-          <strong>Skipped:</strong> ${metrics.skipped.toLocaleString()} ·
-          <strong>Inverted:</strong> ${metrics.inverted.toLocaleString()}<br />
-          <strong>Tip:</strong> use Plotly’s camera controls to compose screenshots for the chapter.
-        `;
-        statusEl.textContent = "Ready";
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Render failed";
-        metricsEl.textContent = `Render failed: ${err.message || err}`;
-      } finally {
-        randomSeedButton.disabled = false;
+      function runSelfTests() {
+        console.groupCollapsed("Iterated Pyramid Terrain self-tests");
+        try {
+          requiredIds.forEach((id) => console.assert(document.getElementById(id), `Missing #${id}`));
+          console.assert(typeof Plotly !== "undefined", "Plotly must be loaded before initialization");
+          console.assert(typeof loadPyodide === "function", "Pyodide loader must be available");
+          console.assert(randomSeedButton instanceof HTMLButtonElement, "New Seed button must be a button element");
+          console.assert(!Object.prototype.hasOwnProperty.call(controls, "randomSeedButton"), "randomSeedButton should not live inside controls; use the standalone constant");
+          console.assert(controls.randomness.value === "0", "Default Overall Randomness should start at 0%");
+          const testGrid = [[-1, 0, 1]];
+          const scaledGrid = scaleZGrid(testGrid, 2.5);
+          console.assert(scaledGrid[0][0] === -2.5 && scaledGrid[0][2] === 2.5, "Height Scale should multiply normalized z values after terrain generation");
+          updateLabels();
+          console.assert(controls.jitter.disabled === true, "Position Jitter should be disabled when Overall Randomness is 0%");
+          console.assert(controls.dropout.disabled === true, "Skipped Bumps should be disabled when Overall Randomness is 0%");
+          console.assert(controls.inversion.disabled === true, "Inverted Bumps should be disabled when Overall Randomness is 0%");
+          console.assert(controls.seed.disabled === true, "Seed should be disabled when Overall Randomness is 0%");
+          console.assert(randomSeedButton.disabled === true, "New Seed should be disabled when Overall Randomness is 0%");
+          controls.randomness.value = "50";
+          updateLabels();
+          console.assert(controls.jitter.disabled === false, "Position Jitter should enable when Overall Randomness is above 0%");
+          console.assert(randomSeedButton.disabled === false, "New Seed should enable when Overall Randomness is above 0%");
+          controls.randomness.value = "0";
+          updateLabels();
+          console.info("Self-tests complete.");
+        } finally {
+          console.groupEnd();
+        }
       }
-    }
 
-    async function initialize() {
-      randomSeedButton.disabled = true;
-      updateLabels();
+      const plotEl = byId("plot");
+      const ruleDetails = document.querySelector(".plot-shell details");
 
-      try {
-        statusEl.textContent = "Loading Python engine…";
-        pyodide = await loadPyodide();
-        const pythonCode = document.getElementById("terrain-python").textContent;
-        pyodide.runPython(pythonCode);
-        generateTerrain = pyodide.globals.get("generate_terrain");
-        isReady = true;
-        statusEl.textContent = "Ready";
-        metricsEl.textContent = "Python engine loaded. Render the perfectly regular surface, then increase randomness for organic variants.";
-        await render();
-      } catch (err) {
-        console.error(err);
-        statusEl.textContent = "Initialization failed";
-        metricsEl.textContent = `Initialization failed: ${err.message || err}`;
-      } finally {
-        randomSeedButton.disabled = false;
+      const controls = {
+        iterations: byId("iterations"),
+        gridSize: byId("gridSize"),
+        heightScale: byId("heightScale"),
+        decay: byId("decay"),
+        randomness: byId("randomness"),
+        jitter: byId("jitter"),
+        dropout: byId("dropout"),
+        inversion: byId("inversion"),
+        smoothPasses: byId("smoothPasses"),
+        seed: byId("seed"),
+      };
+
+      const labels = {
+        iterationsValue: byId("iterationsValue"),
+        heightScaleValue: byId("heightScaleValue"),
+        decayValue: byId("decayValue"),
+        randomnessValue: byId("randomnessValue"),
+        jitterValue: byId("jitterValue"),
+        dropoutValue: byId("dropoutValue"),
+        inversionValue: byId("inversionValue"),
+        smoothPassesValue: byId("smoothPassesValue"),
+      };
+
+      const statusEl = byId("status");
+      const metricsEl = byId("metrics");
+      const randomSeedButton = byId("randomSeedButton");
+
+      function setRandomDependentControlsDisabled(disabled) {
+        controls.jitter.disabled = disabled;
+        controls.dropout.disabled = disabled;
+        controls.inversion.disabled = disabled;
+        controls.seed.disabled = disabled;
+        randomSeedButton.disabled = disabled;
       }
-    }
 
-    Object.values(controls).forEach((control) => {
-      control.addEventListener("input", updateLabels);
-    });
+      function updateLabels() {
+        const randomnessPercent = Number(controls.randomness.value);
+        const randomnessActive = randomnessPercent > 0;
 
-    // Render on release/change instead of every slider tick, keeping the app responsive.
-    [
-      controls.iterations,
-      controls.gridSize,
-      controls.heightScale,
-      controls.decay,
-      controls.randomness,
-      controls.jitter,
-      controls.dropout,
-      controls.inversion,
-      controls.smoothPasses,
-      controls.seed,
-    ].forEach((control) => {
-      control.addEventListener("change", () => {
+        labels.iterationsValue.textContent = controls.iterations.value;
+        labels.heightScaleValue.textContent = Number(controls.heightScale.value).toFixed(2);
+        labels.decayValue.textContent = Number(controls.decay.value).toFixed(2);
+        labels.randomnessValue.textContent = `${controls.randomness.value}%`;
+        labels.jitterValue.textContent = `${Math.round(Number(controls.jitter.value) * randomnessPercent / 100)}%`;
+        labels.dropoutValue.textContent = `${Math.round(Number(controls.dropout.value) * randomnessPercent / 100)}%`;
+        labels.inversionValue.textContent = `${Math.round(Number(controls.inversion.value) * randomnessPercent / 100)}%`;
+        labels.smoothPassesValue.textContent = controls.smoothPasses.value;
+
+        setRandomDependentControlsDisabled(!randomnessActive);
+      }
+
+      function setBusy(isBusy) {
+        statusEl.textContent = isBusy ? "Generating surface…" : "Ready";
+        if (Number(controls.randomness.value) > 0) {
+          randomSeedButton.disabled = isBusy;
+        } else {
+          randomSeedButton.disabled = true;
+        }
+      }
+
+      function getParams() {
+        return {
+          iterations: Number(controls.iterations.value),
+          grid_size: Number(controls.gridSize.value),
+          height_scale: Number(controls.heightScale.value),
+          decay: Number(controls.decay.value),
+          randomness: Number(controls.randomness.value) / 100,
+          jitter: Number(controls.jitter.value) / 100,
+          dropout: Number(controls.dropout.value) / 100,
+          inversion: Number(controls.inversion.value) / 100,
+          smooth_passes: Number(controls.smoothPasses.value),
+          seed: Number(controls.seed.value),
+        };
+      }
+
+      function initialCamera() {
+        // Near-nadir view: mostly top-down, with a slight oblique angle so relief remains readable.
+        return {
+          eye: { x: 0.12, y: 0.16, z: 2.35 },
+          center: { x: 0, y: 0, z: 0 },
+          up: { x: 0, y: 1, z: 0 },
+        };
+      }
+
+      function cloneCamera(camera) {
+        return camera ? JSON.parse(JSON.stringify(camera)) : null;
+      }
+
+      function getActiveCamera() {
+        const liveCamera = plotEl?._fullLayout?.scene?.camera;
+        return cloneCamera(liveCamera || currentCamera || initialCamera());
+      }
+
+      function rememberCamera() {
+        const liveCamera = plotEl?._fullLayout?.scene?.camera;
+        if (liveCamera) {
+          currentCamera = cloneCamera(liveCamera);
+        } else if (!currentCamera) {
+          currentCamera = initialCamera();
+        }
+      }
+
+      function scaleZGrid(zGrid, scale) {
+        return zGrid.map((row) => row.map((value) => value * scale));
+      }
+
+      function pyResultToJs(pyResult) {
+        // Pyodide proxy objects provide toJs(); plain JS objects do not.
+        // This guard keeps Canvas Preview and GitHub Pages happy across Pyodide return-type behavior.
+        if (pyResult && typeof pyResult.toJs === "function") {
+          const converted = pyResult.toJs({ dict_converter: Object.fromEntries });
+          if (typeof pyResult.destroy === "function") {
+            pyResult.destroy();
+          }
+          return converted;
+        }
+        return pyResult;
+      }
+
+      async function render() {
+        if (!isReady) return;
+        const thisRender = ++renderSerial;
         rememberCamera();
-        render();
-      });
-    });
-    randomSeedButton.addEventListener("click", () => {
-      controls.seed.value = Math.floor(Math.random() * 999999);
-      rememberCamera();
-      render();
-    });
+        setBusy(true);
+        updateLabels();
 
-    plotEl.addEventListener("plotly_relayout", (eventData) => {
-      if (eventData && eventData["scene.camera"]) {
-        currentCamera = cloneCamera(eventData["scene.camera"]);
+        // Let the browser paint button-disabled state before compute begins.
+        await new Promise(requestAnimationFrame);
+
+        try {
+          const p = getParams();
+          const pyResult = generateTerrain(
+            p.iterations,
+            p.grid_size,
+            p.height_scale,
+            p.decay,
+            p.randomness,
+            p.jitter,
+            p.dropout,
+            p.inversion,
+            p.smooth_passes,
+            p.seed
+          );
+          const result = pyResultToJs(pyResult);
+
+          if (thisRender !== renderSerial) return;
+
+          const trace = {
+            type: "surface",
+            hoverinfo: "none",
+            hovertemplate: null,
+            x: result.x,
+            y: result.y,
+            z: scaleZGrid(result.z, p.height_scale),
+            surfacecolor: result.z,
+            cmin: -1,
+            cmax: 1,
+            colorscale: [
+              [0.00, "#0b2a53"],  // deep ocean
+              [0.08, "#1f5f9b"],  // mid ocean
+              [0.16, "#6fb6d9"],  // shallow ocean
+              [0.21, "#d8c08a"],  // narrow beach / shoreline
+              [0.58, "#88b66b"],  // broad lowlands
+              [0.72, "#356b43"],  // coniferous forest zone
+              [0.82, "#8b7a62"],  // rocky highlands
+              [1.00, "#e8e3d8"]   // broader pale mountaintops
+            ],
+            showscale: false,
+            contours: {
+              x: { show: false, highlight: false },
+              y: { show: false, highlight: false },
+              z: { show: false, highlight: false },
+            },
+            lighting: {
+              ambient: 0.54,
+              diffuse: 0.72,
+              roughness: 0.78,
+              specular: 0.08,
+            },
+            lightposition: { x: 80, y: -120, z: 220 },
+          };
+
+          const layout = {
+            autosize: true,
+            margin: { l: 0, r: 0, t: 0, b: 0 },
+            paper_bgcolor: "#ffffff",
+            plot_bgcolor: "#ffffff",
+            scene: {
+              xaxis: { visible: false, range: [0, 1], showspikes: false, spikesides: false },
+              yaxis: { visible: false, range: [0, 1], showspikes: false, spikesides: false },
+              zaxis: { visible: false, range: [-2.6, 2.6], showspikes: false, spikesides: false },
+              aspectratio: { x: 1, y: 1, z: 0.42 },
+              camera: getActiveCamera(),
+              dragmode: "turntable",
+            },
+            hovermode: false,
+            uirevision: "keep-view",
+          };
+
+          const config = {
+            responsive: true,
+            staticPlot: false,
+            displaylogo: false,
+            modeBarButtonsToRemove: ["lasso2d", "select2d", "hoverClosest3d", "resetCameraLastSave3d"],
+            toImageButtonOptions: {
+              format: "png",
+              filename: `iterated-pyramid-terrain-seed-${p.seed}-randomness-${Math.round(p.randomness * 100)}`,
+              height: 1200,
+              width: 1600,
+              scale: 2,
+            },
+          };
+
+          await Plotly.react(plotEl, [trace], layout, config);
+          currentCamera = cloneCamera(plotEl?._fullLayout?.scene?.camera);
+
+          const metrics = result.metrics;
+          metricsEl.innerHTML = `
+            <strong>Generated:</strong> ${metrics.bumps.toLocaleString()} pyramid bumps<br />
+            <strong>Skipped:</strong> ${metrics.skipped.toLocaleString()} ·
+            <strong>Inverted:</strong> ${metrics.inverted.toLocaleString()}<br />
+            <strong>Tip:</strong> use Plotly’s camera controls to compose screenshots for the chapter.
+          `;
+          statusEl.textContent = "Ready";
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Render failed";
+          metricsEl.textContent = `Render failed: ${err.message || err}`;
+        } finally {
+          if (thisRender === renderSerial) {
+            setBusy(false);
+            updateLabels();
+          }
+        }
       }
-    });
 
-    plotEl.addEventListener("plotly_buttonclicked", (eventData) => {
-      const buttonName = eventData?.button?.name;
-      if (buttonName === "resetCameraDefault3d") {
-        currentCamera = initialCamera();
-        requestAnimationFrame(() => {
-          Plotly.relayout(plotEl, { "scene.camera": currentCamera });
+      async function initialize() {
+        updateLabels();
+        setBusy(true);
+
+        try {
+          statusEl.textContent = "Loading Python engine…";
+          pyodide = await loadPyodide();
+          const pythonCode = byId("terrain-python").textContent;
+          pyodide.runPython(pythonCode);
+          generateTerrain = pyodide.globals.get("generate_terrain");
+          isReady = true;
+          statusEl.textContent = "Ready";
+          metricsEl.textContent = "Python engine loaded. Render the perfectly regular surface, then increase randomness for organic variants.";
+          await render();
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Initialization failed";
+          metricsEl.textContent = `Initialization failed: ${err.message || err}`;
+        } finally {
+          setBusy(false);
+          updateLabels();
+        }
+      }
+
+      function wireEvents() {
+        Object.values(controls).forEach((control) => {
+          control.addEventListener("input", updateLabels);
         });
-      }
-    });
 
-    if (ruleDetails) {
-      ruleDetails.addEventListener("toggle", () => {
-        requestAnimationFrame(() => {
-          Plotly.Plots.resize(plotEl);
+        // Render on release/change instead of every slider tick, keeping the app responsive.
+        [
+          controls.iterations,
+          controls.gridSize,
+          controls.heightScale,
+          controls.decay,
+          controls.randomness,
+          controls.jitter,
+          controls.dropout,
+          controls.inversion,
+          controls.smoothPasses,
+          controls.seed,
+        ].forEach((control) => {
+          control.addEventListener("change", () => {
+            rememberCamera();
+            render();
+          });
+        });
+
+        randomSeedButton.addEventListener("click", () => {
+          if (randomSeedButton.disabled) return;
+          controls.seed.value = Math.floor(Math.random() * 999999);
           rememberCamera();
           render();
         });
-      });
-    }
 
-    window.addEventListener("resize", () => {
-      Plotly.Plots.resize(plotEl);
-    });
+        plotEl.addEventListener("plotly_relayout", (eventData) => {
+          if (eventData && eventData["scene.camera"]) {
+            currentCamera = cloneCamera(eventData["scene.camera"]);
+          }
+        });
 
-    initialize();
+        plotEl.addEventListener("plotly_buttonclicked", (eventData) => {
+          const buttonName = eventData?.button?.name;
+          if (buttonName === "resetCameraDefault3d") {
+            currentCamera = initialCamera();
+            requestAnimationFrame(() => {
+              Plotly.relayout(plotEl, { "scene.camera": currentCamera });
+            });
+          }
+        });
+
+        if (ruleDetails) {
+          ruleDetails.addEventListener("toggle", () => {
+            requestAnimationFrame(() => {
+              Plotly.Plots.resize(plotEl);
+              rememberCamera();
+              render();
+            });
+          });
+        }
+
+        window.addEventListener("resize", () => {
+          Plotly.Plots.resize(plotEl);
+        });
+      }
+
+      function start() {
+        try {
+          wireEvents();
+          runSelfTests();
+          initialize();
+        } catch (err) {
+          console.error(err);
+          const fallbackStatus = document.getElementById("status");
+          const fallbackMetrics = document.getElementById("metrics");
+          if (fallbackStatus) fallbackStatus.textContent = "Startup failed";
+          if (fallbackMetrics) fallbackMetrics.textContent = `Startup failed: ${err.message || err}`;
+        }
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", start, { once: true });
+      } else {
+        start();
+      }
+    })();
   </script>
 </body>
 </html>
