@@ -1,25 +1,85 @@
 :root {
-  --bg: #f6f8fb;
-  --text: #1d2433;
-  --muted: #5f6b85;
+  --page-bg: #f7f5ef;
+  --ink: #1f2933;
+  --muted: #5f6b7a;
   --panel: #ffffff;
-  --border: #d9dde5;
-  --accent: #1f5fbf;
-  --accent-soft: #eef3fb;
+  --panel-border: #d9d2c3;
+  --shadow: 0 18px 45px rgba(31, 41, 51, 0.10);
+  --accent: #d77a2d;
+  --accent-dark: #9b4f1c;
+  --science: #2b78c2;
+  --science-dark: #14528d;
+  --radius: 18px;
 }
 
 * { box-sizing: border-box; }
 
-html, body {
+html { min-height: 100%; }
+
+body {
+  min-height: 100%;
   margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(215, 122, 45, 0.12), transparent 30rem),
+    radial-gradient(circle at bottom right, rgba(43, 120, 194, 0.12), transparent 34rem),
+    var(--page-bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
 }
 
-a { color: var(--accent); }
-h1, h2, h3 { line-height: 1.15; }
-p { color: var(--text); }
-.muted { color: var(--muted); }
+button,
+input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 1rem;
+  background: var(--accent);
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(215, 122, 45, 0.22);
+}
+
+button:hover { background: var(--accent-dark); }
+
+button.secondary {
+  background: #eef2f7;
+  color: var(--ink);
+  box-shadow: none;
+}
+
+button.secondary:hover { background: #dfe7f0; }
+
+.page-header {
+  width: min(1180px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 2.25rem 0 1.1rem;
+}
+
+.page-header h1 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  letter-spacing: -0.045em;
+}
+
+.muted,
+.note {
+  color: var(--muted);
+}
+
+.note {
+  font-size: 0.9rem;
+}
+
+.panel {
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: var(--shadow);
+}
+
+.hidden { display: none !important; }

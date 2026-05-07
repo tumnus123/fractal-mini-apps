@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Koch Snowflake with Randomness</title>
+  <link rel="stylesheet" href="../../shared/book.css" />
+  <link rel="stylesheet" href="./style.css" />
+  <script type="module" src="https://pyscript.net/releases/2025.3.1/core.js"></script>
+</head>
+<body>
+  <header class="page-header">
+    <p class="eyebrow">Fractal Nature Companion App</p>
+    <h1>Koch Snowflake with Randomness</h1>
+    <p class="muted intro">
+      Explore how a perfectly recursive rule can be bounded, roughened, and made to feel
+      more organic without losing its underlying family resemblance.
+    </p>
+  </header>
+
+  <main class="app-shell">
+    <aside class="panel controls" aria-label="Snowflake controls">
+      <div class="console-heading nav-console">
+        <span></span>
+        <h2>Navigation Console</h2>
+      </div>
+
+      <div class="control-group">
+        <div class="control">
+          <label for="order">
+            <span>Iterations</span>
+            <strong id="order-value">3</strong>
+          </label>
+          <input id="order" type="range" min="0" max="6" step="1" value="3" />
+          <p class="control-note">Recursive depth. Higher values add detail and cost more to draw.</p>
+        </div>
+
+        <div class="control">
+          <label for="randomness">
+            <span>Randomness</span>
+            <strong id="randomness-value">0.08</strong>
+          </label>
+          <input id="randomness" type="range" min="0" max="0.45" step="0.01" value="0.08" />
+          <p class="control-note">Perturbs the triangular “bump” height while preserving the rule.</p>
+        </div>
+
+        <div class="control seed-row">
+          <label for="seed"><span>Seed</span></label>
+          <div class="seed-actions">
+            <input id="seed" type="number" min="0" step="1" value="42" />
+            <button type="button" class="secondary compact" id="new-seed">New Seed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="console-heading science-console">
+        <span></span>
+        <h2>Science Console</h2>
+      </div>
+
+      <div class="control inline">
+        <input id="show-dimension" type="checkbox" checked />
+        <label for="show-dimension">Show box-count dimension plot</label>
+      </div>
+
+      <div class="button-row">
+        <button type="button" id="redraw">Redraw</button>
+        <button type="button" class="secondary" id="download-svg">Download SVG</button>
+      </div>
+
+      <p class="note status" id="status">Loading Python runtime…</p>
+    </aside>
+
+    <section class="display" aria-label="Snowflake displays">
+      <section class="panel figure-card fractal-card">
+        <div class="figure-title">
+          <div>
+            <p class="eyebrow small">Primary Display</p>
+            <h2>Fractal View</h2>
+          </div>
+          <div class="metric">
+            <span>Estimated dimension</span>
+            <strong id="dimension-label">—</strong>
+          </div>
+        </div>
+        <div class="svg-frame square-frame">
+          <svg id="plot" class="plot-svg" viewBox="0 0 800 800" role="img" aria-label="Koch snowflake plot"></svg>
+        </div>
+      </section>
+
+      <section id="dimension-card" class="panel figure-card dimension-card">
+        <div class="figure-title">
+          <div>
+            <p class="eyebrow small blue">Secondary Display</p>
+            <h2>Log-Log Box Count Fit</h2>
+          </div>
+          <div class="note">Client-side calculation</div>
+        </div>
+        <div class="svg-frame wide-frame">
+          <svg id="dimension-plot" class="dimension-svg" viewBox="0 0 800 500" role="img" aria-label="Dimension plot"></svg>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="py" src="./koch_core.py" config='{"packages": []}'></script>
+  <script type="py" src="./app.py" config='{"packages": []}'></script>
+</body>
+</html>
