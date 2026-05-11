@@ -38,9 +38,9 @@
         <div class="control">
           <label for="randomness">
             <span>Randomness</span>
-            <strong id="randomness-value">0.00</strong>
+            <strong id="randomness-value">0.08</strong>
           </label>
-          <input id="randomness" type="range" min="0" max="0.8" step="0.01" value="0.00" />
+          <input id="randomness" type="range" min="0" max="0.45" step="0.01" value="0.08" />
           <p class="control-note">Perturbs the triangular “bump” height while preserving the rule.</p>
         </div>
 
@@ -103,6 +103,7 @@
     </section>
   </main>
 
-  <script type="py" src="./app.py" config="./pyscript.json"></script>
+  <script type="py" src="./koch_core.py" config='{"packages": []}'></script>
+  <script type="py" src="./app.py" config='{"packages": []}'></script>
 </body>
 </html>

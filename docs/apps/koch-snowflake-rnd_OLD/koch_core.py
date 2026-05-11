@@ -20,7 +20,7 @@ def safe_int(value, default=3, min_value=0, max_value=6):
     return clamp(parsed, min_value, max_value)
 
 
-def safe_float(value, default=0.00, min_value=0.0, max_value=0.8):
+def safe_float(value, default=0.08, min_value=0.0, max_value=0.45):
     try:
         parsed = float(value)
     except (TypeError, ValueError):

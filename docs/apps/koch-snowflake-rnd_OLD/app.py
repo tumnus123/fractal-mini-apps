@@ -1,6 +1,6 @@
 """Pyodide/PyScript UI bridge for the Koch Snowflake mini-app."""
 
-from js import Blob, URL, document, window
+from js import Blob, URL, document
 from pyodide.ffi import create_proxy
 import random
 
@@ -20,10 +20,6 @@ SVG_NS = "http://www.w3.org/2000/svg"
 
 current_svg_text = ""
 _event_proxies = []
-
-_redraw_timeout_id = None
-_scheduled_redraw_proxy = None
-_DEBOUNCE_MS = 120
 
 
 def qs(element_id):
@@ -49,7 +45,7 @@ def svg_el(tag, attrs=None):
 
 def read_inputs():
     order = safe_int(qs("order").value, default=3, min_value=0, max_value=6)
-    randomness = safe_float(qs("randomness").value, default=0.0, min_value=0.0, max_value=0.8)
+    randomness = safe_float(qs("randomness").value, default=0.08, min_value=0.0, max_value=0.45)
     try:
         seed = int(qs("seed").value)
     except ValueError:
@@ -62,24 +58,10 @@ def update_labels():
     qs("order-value").textContent = qs("order").value
     qs("randomness-value").textContent = f"{float(qs('randomness').value):.2f}"
 
-def scheduled_redraw():
-    global _redraw_timeout_id
-    _redraw_timeout_id = None
-    redraw()
-
-def schedule_redraw(event=None):
-    global _redraw_timeout_id
-
-    # Keep slider value labels responsive while delaying the expensive redraw.
-    update_labels()
-
-    if _redraw_timeout_id is not None:
-        window.clearTimeout(_redraw_timeout_id)
-
-    _redraw_timeout_id = window.setTimeout(_scheduled_redraw_proxy, _DEBOUNCE_MS)
 
 def polyline_points_str(points):
     return " ".join(f"{x:.3f},{y:.3f}" for x, y in points)
+
 
 def draw_main_plot(points):
     svg = qs("plot")
@@ -259,27 +241,14 @@ def bind(element_id, event_name, handler):
 
 
 def bind_events():
-    global _scheduled_redraw_proxy
+    bind("order", "input", redraw)
+    bind("randomness", "input", redraw)
+    bind("seed", "input", redraw)
+    bind("show-dimension", "change", redraw)
+    bind("redraw", "click", redraw)
+    bind("new-seed", "click", randomize_seed)
+    bind("download-svg", "click", download_svg)
 
-    _scheduled_redraw_proxy = create_proxy(lambda: scheduled_redraw())
-    _event_proxies.append(_scheduled_redraw_proxy)
-
-    # Sliders can fire dozens of input events while dragging, so debounce them.
-    for element_id in ["order", "randomness"]:
-        element = qs(element_id)
-        proxy = create_proxy(lambda event: schedule_redraw(event))
-        _event_proxies.append(proxy)
-        element.addEventListener("input", proxy)
-
-    # Seed typing can also generate rapid input events, so debounce it too.
-    seed_proxy = create_proxy(lambda event: schedule_redraw(event))
-    _event_proxies.append(seed_proxy)
-    qs("seed").addEventListener("input", seed_proxy)
-
-    # Checkbox should feel immediate.
-    dimension_proxy = create_proxy(lambda event: redraw())
-    _event_proxies.append(dimension_proxy)
-    qs("show-dimension").addEventListener("change", dimension_proxy)
 
 bind_events()
 redraw()

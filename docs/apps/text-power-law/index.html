@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Text Power-Law Explorer</title>
+
+  <!-- Match the recent fractal mini-app family. Adjust these paths as needed. -->
+  <link rel="stylesheet" href="../../shared/book.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+  <style>
+    :root {
+      --app-accent-a: var(--lcars-orange, #ff9c00);
+      --app-accent-b: var(--lcars-blue, #4aa3ff);
+      --app-bg: var(--book-bg, #ffffff);
+      --app-text: var(--book-text, #1e1e1e);
+      --app-muted: var(--book-muted, #666666);
+      --app-panel: var(--book-panel, #f7f7f5);
+      --app-border: rgba(0, 0, 0, 0.16);
+      --app-radius: 18px;
+    }
+
+    body {
+      margin: 0;
+      background: var(--app-bg);
+      color: var(--app-text);
+      font-family: var(--book-font-body, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    }
+
+    .app-shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .app-title-row {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      border-bottom: 6px solid var(--app-accent-a);
+      padding-bottom: 0.65rem;
+    }
+
+    .app-title-row h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 2.6vw, 2.7rem);
+      line-height: 1.05;
+    }
+
+    .app-subtitle {
+      color: var(--app-muted);
+      margin: 0.35rem 0 0;
+      max-width: 780px;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: minmax(260px, 340px) 1fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    @media (max-width: 860px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--app-panel);
+      border: 1px solid var(--app-border);
+      border-radius: var(--app-radius);
+      padding: 1rem;
+      box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .panel h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .control-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-weight: 650;
+      margin-bottom: 0.35rem;
+    }
+
+    select,
+    input[type="file"],
+    input[type="number"],
+    button {
+      width: 100%;
+      box-sizing: border-box;
+      font: inherit;
+      border-radius: 12px;
+      border: 1px solid var(--app-border);
+      padding: 0.65rem 0.75rem;
+      background: #fff;
+      color: var(--app-text);
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--app-accent-a);
+      color: #111;
+      border: none;
+      font-weight: 750;
+      margin-top: 0.5rem;
+    }
+
+    button.secondary {
+      background: var(--app-accent-b);
+      color: #071522;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.55;
+    }
+
+    .small-note {
+      color: var(--app-muted);
+      font-size: 0.9rem;
+      line-height: 1.35;
+      margin: 0.35rem 0 0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(110px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 760px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(110px, 1fr));
+      }
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--app-border);
+      border-radius: 16px;
+      padding: 0.8rem;
+    }
+
+    .stat-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--app-muted);
+    }
+
+    .stat-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      margin-top: 0.15rem;
+    }
+
+    #plot {
+      min-height: 440px;
+      width: 100%;
+    }
+
+    .table-wrap {
+      max-height: 520px;
+      overflow: auto;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid var(--app-border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.55rem 0.65rem;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 1;
+    }
+
+    td.num,
+    th.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .split-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .split-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .status {
+      min-height: 1.35rem;
+      color: var(--app-muted);
+      margin-top: 0.6rem;
+      font-size: 0.92rem;
+    }
+
+    .error {
+      color: #9a1b1b;
+      font-weight: 650;
+    }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-title-row">
+      <div>
+        <h1>Text Power-Law Explorer</h1>
+        <p class="app-subtitle">Paste, upload, or load a public-domain text to reveal its ranked word counts and Zipf-style log-log shape.</p>
+      </div>
+    </header>
+
+    <section class="main-grid">
+      <aside class="panel">
+        <h2>Source Text</h2>
+
+        <div class="control-group">
+          <label for="existingWork">Existing Works</label>
+          <select id="existingWork">
+            <option value="">Choose a public-domain text...</option>
+            <option value="https://www.gutenberg.org/ebooks/2600.txt.utf-8">War and Peace — Leo Tolstoy</option>
+            <option value="https://www.gutenberg.org/ebooks/2701.txt.utf-8">Moby-Dick — Herman Melville</option>
+            <option value="https://www.gutenberg.org/ebooks/1342.txt.utf-8">Pride and Prejudice — Jane Austen</option>
+            <option value="https://www.gutenberg.org/ebooks/84.txt.utf-8">Frankenstein — Mary Shelley</option>
+            <option value="https://www.gutenberg.org/ebooks/345.txt.utf-8">Dracula — Bram Stoker</option>
+            <option value="https://www.gutenberg.org/ebooks/11.txt.utf-8">Alice’s Adventures in Wonderland — Lewis Carroll</option>
+            <option value="https://www.gutenberg.org/ebooks/1661.txt.utf-8">The Adventures of Sherlock Holmes — Arthur Conan Doyle</option>
+            <option value="https://www.gutenberg.org/ebooks/35.txt.utf-8">The Time Machine — H. G. Wells</option>
+            <option value="https://www.gutenberg.org/ebooks/23.txt.utf-8">Narrative of the Life of Frederick Douglass</option>
+          </select>
+          <button id="loadExisting">Load selected work</button>
+          <p class="small-note">Existing texts are fetched from Project Gutenberg plain-text files.</p>
+        </div>
+
+        <div class="control-group">
+          <label for="fileInput">Upload TXT file</label>
+          <input id="fileInput" type="file" accept=".txt,text/plain" />
+          <p class="small-note">Local files stay in the browser. They are not uploaded anywhere by this app.</p>
+        </div>
+
+        <div class="control-group">
+          <label for="minCount">Minimum count shown in plot</label>
+          <input id="minCount" type="number" min="1" value="1" />
+          <p class="small-note">Use 2 or 3 to reduce the noisy far tail while keeping the ranked table complete.</p>
+        </div>
+
+        <div class="control-group">
+          <button id="downloadCsv" class="secondary" disabled>Download ranked CSV</button>
+        </div>
+
+        <div id="status" class="status">Load a work or upload a TXT file to begin.</div>
+      </aside>
+
+      <section>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total words</div>
+            <div id="totalWords" class="stat-value">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Unique words</div>
+            <div id="uniqueWords" class="stat-value">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Top word</div>
+            <div id="topWord" class="stat-value">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Estimated slope</div>
+            <div id="slope" class="stat-value">—</div>
+          </div>
+        </div>
+
+        <div class="split-grid">
+          <div class="panel">
+            <h2>Log-Log Rank/Frequency Plot</h2>
+            <div id="plot"></div>
+            <p class="small-note">A roughly straight middle region suggests Zipf-like power-law behavior. The slope is a simple least-squares fit to the visible log-log points, not a formal statistical test.</p>
+          </div>
+
+          <div class="panel">
+            <h2>Ranked Word Counts</h2>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="num">Rank</th>
+                    <th>Word</th>
+                    <th class="num">Count</th>
+                  </tr>
+                </thead>
+                <tbody id="countsBody">
+                  <tr><td colspan="3">No text loaded yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const statusEl = document.getElementById("status");
+    const existingWorkEl = document.getElementById("existingWork");
+    const loadExistingBtn = document.getElementById("loadExisting");
+    const fileInputEl = document.getElementById("fileInput");
+    const minCountEl = document.getElementById("minCount");
+    const downloadCsvBtn = document.getElementById("downloadCsv");
+    const countsBodyEl = document.getElementById("countsBody");
+
+    const totalWordsEl = document.getElementById("totalWords");
+    const uniqueWordsEl = document.getElementById("uniqueWords");
+    const topWordEl = document.getElementById("topWord");
+    const slopeEl = document.getElementById("slope");
+
+    let currentRows = [];
+    let currentSourceName = "text";
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.classList.toggle("error", isError);
+    }
+
+    function stripGutenbergBoilerplate(text) {
+      const startPatterns = [
+        /\*\*\* START OF (?:THE|THIS) PROJECT GUTENBERG EBOOK .*?\*\*\*/is,
+        /\*\*\* START OF THE PROJECT GUTENBERG EBOOK .*?\*\*\*/is
+      ];
+      const endPatterns = [
+        /\*\*\* END OF (?:THE|THIS) PROJECT GUTENBERG EBOOK .*$/is,
+        /\*\*\* END OF THE PROJECT GUTENBERG EBOOK .*$/is
+      ];
+
+      let result = text;
+      for (const pattern of startPatterns) {
+        const match = result.match(pattern);
+        if (match) {
+          result = result.slice(match.index + match[0].length);
+          break;
+        }
+      }
+      for (const pattern of endPatterns) {
+        const match = result.match(pattern);
+        if (match) {
+          result = result.slice(0, match.index);
+          break;
+        }
+      }
+      return result;
+    }
+
+    function tokenize(text) {
+      const normalized = text
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+
+      // Keeps internal apostrophes in words, so don't and it's remain single tokens.
+      return normalized.match(/[a-z]+(?:'[a-z]+)?/g) || [];
+    }
+
+    function analyzeText(text) {
+      const cleaned = stripGutenbergBoilerplate(text);
+      const words = tokenize(cleaned);
+      const counts = new Map();
+
+      for (const word of words) {
+        counts.set(word, (counts.get(word) || 0) + 1);
+      }
+
+      const rows = Array.from(counts.entries())
+        .map(([word, count]) => ({ word, count }))
+        .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word))
+        .map((row, index) => ({ rank: index + 1, ...row }));
+
+      return { totalWords: words.length, rows };
+    }
+
+    function formatNumber(value) {
+      return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    }
+
+    function linearFit(xs, ys) {
+      const n = xs.length;
+      if (n < 2) return null;
+
+      const sumX = xs.reduce((a, b) => a + b, 0);
+      const sumY = ys.reduce((a, b) => a + b, 0);
+      const sumXY = xs.reduce((acc, x, i) => acc + x * ys[i], 0);
+      const sumXX = xs.reduce((acc, x) => acc + x * x, 0);
+      const denom = n * sumXX - sumX * sumX;
+      if (denom === 0) return null;
+
+      const slope = (n * sumXY - sumX * sumY) / denom;
+      const intercept = (sumY - slope * sumX) / n;
+      return { slope, intercept };
+    }
+
+    function renderTable(rows) {
+      const top = rows.slice(0, 75);
+      const bottom = rows.length > 100 ? rows.slice(-25) : [];
+      const displayRows = bottom.length ? [...top, null, ...bottom] : top;
+
+      countsBodyEl.innerHTML = "";
+      for (const row of displayRows) {
+        const tr = document.createElement("tr");
+        if (row === null) {
+          tr.innerHTML = `<td colspan="3" style="text-align:center;color:var(--app-muted);">… ${formatNumber(rows.length - 100)} rows omitted …</td>`;
+        } else {
+          tr.innerHTML = `
+            <td class="num">${formatNumber(row.rank)}</td>
+            <td>${row.word}</td>
+            <td class="num">${formatNumber(row.count)}</td>
+          `;
+        }
+        countsBodyEl.appendChild(tr);
+      }
+    }
+
+    function renderPlot(rows) {
+      const minCount = Math.max(1, Number(minCountEl.value || 1));
+      const visible = rows.filter(row => row.count >= minCount);
+      const xs = visible.map(row => Math.log10(row.rank));
+      const ys = visible.map(row => Math.log10(row.count));
+      const fit = linearFit(xs, ys);
+
+      const traces = [
+        {
+          x: xs,
+          y: ys,
+          text: visible.map(row => `#${row.rank}: ${row.word} (${row.count})`),
+          mode: "markers",
+          type: "scattergl",
+          name: "Words",
+          hovertemplate: "%{text}<br>log10(rank): %{x:.3f}<br>log10(count): %{y:.3f}<extra></extra>"
+        }
+      ];
+
+      if (fit) {
+        const xMin = Math.min(...xs);
+        const xMax = Math.max(...xs);
+        traces.push({
+          x: [xMin, xMax],
+          y: [fit.intercept + fit.slope * xMin, fit.intercept + fit.slope * xMax],
+          mode: "lines",
+          name: `Fit slope ${fit.slope.toFixed(3)}`,
+          hoverinfo: "skip"
+        });
+        slopeEl.textContent = fit.slope.toFixed(3);
+      } else {
+        slopeEl.textContent = "—";
+      }
+
+      const layout = {
+        margin: { l: 58, r: 18, t: 12, b: 52 },
+        paper_bgcolor: "rgba(0,0,0,0)",
+        plot_bgcolor: "rgba(0,0,0,0)",
+        xaxis: { title: "log10(rank)", zeroline: false },
+        yaxis: { title: "log10(word count)", zeroline: false },
+        showlegend: true,
+        legend: { orientation: "h", y: -0.2 }
+      };
+
+      const config = {
+        responsive: true,
+        displaylogo: false,
+        modeBarButtonsToRemove: ["lasso2d", "select2d"]
+      };
+
+      Plotly.react("plot", traces, layout, config);
+    }
+
+    function updateSummary(totalWords, rows) {
+      totalWordsEl.textContent = formatNumber(totalWords);
+      uniqueWordsEl.textContent = formatNumber(rows.length);
+      topWordEl.textContent = rows[0] ? rows[0].word : "—";
+    }
+
+    function renderAnalysis(text, sourceName) {
+      currentSourceName = sourceName || "text";
+      const result = analyzeText(text);
+      currentRows = result.rows;
+
+      updateSummary(result.totalWords, result.rows);
+      renderTable(result.rows);
+      renderPlot(result.rows);
+      downloadCsvBtn.disabled = result.rows.length === 0;
+
+      setStatus(`Analyzed ${currentSourceName}. Found ${formatNumber(result.totalWords)} total words and ${formatNumber(result.rows.length)} unique words.`);
+    }
+
+    async function loadExistingWork() {
+      const url = existingWorkEl.value;
+      const selectedLabel = existingWorkEl.options[existingWorkEl.selectedIndex]?.text || "selected work";
+      if (!url) {
+        setStatus("Choose a work first.", true);
+        return;
+      }
+
+      loadExistingBtn.disabled = true;
+      setStatus(`Loading ${selectedLabel}...`);
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        renderAnalysis(text, selectedLabel);
+      } catch (error) {
+        setStatus(`Could not load the selected work. This may be a network or CORS issue. Try downloading the TXT from Project Gutenberg and uploading it here. (${error.message})`, true);
+      } finally {
+        loadExistingBtn.disabled = false;
+      }
+    }
+
+    function loadLocalFile(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith(".txt") && file.type !== "text/plain") {
+        setStatus("Please choose a TXT file.", true);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => renderAnalysis(String(reader.result || ""), file.name);
+      reader.onerror = () => setStatus("Could not read the selected file.", true);
+      reader.readAsText(file);
+    }
+
+    function downloadCsv() {
+      if (!currentRows.length) return;
+      const header = "rank,word,count\n";
+      const lines = currentRows.map(row => `${row.rank},"${row.word.replaceAll('"', '""')}",${row.count}`);
+      const blob = new Blob([header + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      const safeName = currentSourceName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "text";
+      link.href = URL.createObjectURL(blob);
+      link.download = `${safeName}-ranked-word-counts.csv`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    loadExistingBtn.addEventListener("click", loadExistingWork);
+    fileInputEl.addEventListener("change", loadLocalFile);
+    minCountEl.addEventListener("change", () => currentRows.length && renderPlot(currentRows));
+    downloadCsvBtn.addEventListener("click", downloadCsv);
+  </script>
+</body>
+</html>
