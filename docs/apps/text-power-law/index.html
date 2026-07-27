@@ -6,7 +6,46 @@
   <title>Text Power-Law Explorer</title>
 
   <!-- Match the recent fractal mini-app family. Adjust these paths as needed. -->
-  <link rel="stylesheet" href="../../shared/book.css" />
+  <script>
+    function buildCandidatePaths(pathname, kind) {
+      const docsBase = kind === "css" ? "/docs/shared/book.css" : "/docs/assets/books/";
+      const rootBase = kind === "css" ? "/shared/book.css" : "/assets/books/";
+      const relativeBase = kind === "css" ? "../../shared/book.css" : "../../assets/books/";
+
+      if (pathname.includes("/docs/apps/")) {
+        return [docsBase, relativeBase, rootBase];
+      }
+      if (pathname.includes("/apps/")) {
+        return [rootBase, relativeBase, docsBase];
+      }
+      return [relativeBase, rootBase, docsBase];
+    }
+
+    (function loadSharedStylesheet() {
+      const candidates = buildCandidatePaths(window.location.pathname, "css");
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+
+      let idx = 0;
+      const tryNext = async () => {
+        if (idx >= candidates.length) {
+          return;
+        }
+
+        const href = candidates[idx++];
+        try {
+          const response = await fetch(href, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          link.href = href;
+          document.head.appendChild(link);
+        } catch {
+          tryNext();
+        }
+      };
+
+      tryNext();
+    })();
+  </script>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 
   <style>
@@ -249,19 +288,10 @@
         <div class="control-group">
           <label for="existingWork">Existing Works</label>
           <select id="existingWork">
-            <option value="">Choose a public-domain text...</option>
-            <option value="https://www.gutenberg.org/ebooks/2600.txt.utf-8">War and Peace — Leo Tolstoy</option>
-            <option value="https://www.gutenberg.org/ebooks/2701.txt.utf-8">Moby-Dick — Herman Melville</option>
-            <option value="https://www.gutenberg.org/ebooks/1342.txt.utf-8">Pride and Prejudice — Jane Austen</option>
-            <option value="https://www.gutenberg.org/ebooks/84.txt.utf-8">Frankenstein — Mary Shelley</option>
-            <option value="https://www.gutenberg.org/ebooks/345.txt.utf-8">Dracula — Bram Stoker</option>
-            <option value="https://www.gutenberg.org/ebooks/11.txt.utf-8">Alice’s Adventures in Wonderland — Lewis Carroll</option>
-            <option value="https://www.gutenberg.org/ebooks/1661.txt.utf-8">The Adventures of Sherlock Holmes — Arthur Conan Doyle</option>
-            <option value="https://www.gutenberg.org/ebooks/35.txt.utf-8">The Time Machine — H. G. Wells</option>
-            <option value="https://www.gutenberg.org/ebooks/23.txt.utf-8">Narrative of the Life of Frederick Douglass</option>
+            <option value="">Loading local works...</option>
           </select>
           <button id="loadExisting">Load selected work</button>
-          <p class="small-note">Existing texts are fetched from Project Gutenberg plain-text files.</p>
+          <p class="small-note">Existing texts are loaded from the docs/assets/books folder.</p>
         </div>
 
         <div class="control-group">
@@ -274,6 +304,12 @@
           <label for="minCount">Minimum count shown in plot</label>
           <input id="minCount" type="number" min="1" value="1" />
           <p class="small-note">Use 2 or 3 to reduce the noisy far tail while keeping the ranked table complete.</p>
+
+          <div style="display:flex;align-items:center;gap:0.55rem;margin-top:0.7rem;">
+            <input id="reducedBiasMode" type="checkbox" style="width:auto;" />
+            <label for="reducedBiasMode" style="margin:0;">Use reduced-bias slope</label>
+          </div>
+          <p class="small-note">Uses a split-half estimator (rank from one token half, frequency from the other) to reduce correlated-error bias; see <a href="https://doi.org/10.3758/s13423-014-0585-6" target="_blank" rel="noopener noreferrer">Piantadosi (2014)</a>.</p>
         </div>
 
         <div class="control-group">
@@ -338,6 +374,7 @@
     const loadExistingBtn = document.getElementById("loadExisting");
     const fileInputEl = document.getElementById("fileInput");
     const minCountEl = document.getElementById("minCount");
+    const reducedBiasModeEl = document.getElementById("reducedBiasMode");
     const downloadCsvBtn = document.getElementById("downloadCsv");
     const countsBodyEl = document.getElementById("countsBody");
 
@@ -347,6 +384,8 @@
     const slopeEl = document.getElementById("slope");
 
     let currentRows = [];
+  let currentWords = [];
+  let currentTextHash = 0;
     let currentSourceName = "text";
 
     function setStatus(message, isError = false) {
@@ -382,6 +421,81 @@
       return result;
     }
 
+    function stripSourceHeaderComments(text) {
+      const startMarker = /^\s*#\s*===\s*TEXT-POWER-LAW SOURCE HEADER\s*===\s*$/im;
+      const endMarker = /^\s*#\s*===\s*END SOURCE HEADER\s*===\s*$/im;
+
+      const startMatch = text.match(startMarker);
+      if (!startMatch || startMatch.index === undefined) {
+        return text;
+      }
+
+      const afterStartIndex = startMatch.index + startMatch[0].length;
+      const rest = text.slice(afterStartIndex);
+      const endMatch = rest.match(endMarker);
+      if (!endMatch || endMatch.index === undefined) {
+        return text;
+      }
+
+      return rest.slice(endMatch.index + endMatch[0].length);
+    }
+
+    function deriveWorkLabelFromFilename(fileName) {
+      const stem = fileName.replace(/\.txt$/i, "").trim();
+      const byIndex = stem.toLowerCase().lastIndexOf(" by ");
+      if (byIndex > 0) {
+        const title = stem.slice(0, byIndex).trim();
+        const author = stem.slice(byIndex + 4).trim();
+        if (title && author) return `${title} — ${author}`;
+      }
+      return stem;
+    }
+
+    async function populateExistingWorks() {
+      existingWorkEl.innerHTML = `<option value="">Loading local works...</option>`;
+
+      const defaultOptionHtml = `<option value="">Choose a local TXT file...</option>`;
+      const baseCandidates = buildCandidatePaths(window.location.pathname, "books");
+      const manifestCandidates = [...new Set(baseCandidates.map(base => `${base}manifest.json`))];
+
+      let manifest = null;
+      let manifestError = "";
+
+      for (const manifestUrl of manifestCandidates) {
+        try {
+          const response = await fetch(manifestUrl, { cache: "no-store" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          manifest = await response.json();
+          break;
+        } catch (error) {
+          manifestError = error.message;
+        }
+      }
+
+      const works = Array.isArray(manifest)
+        ? manifest
+        : Array.isArray(manifest?.works)
+          ? manifest.works
+          : [];
+
+      const files = works
+        .map(item => (typeof item === "string" ? item : item?.file))
+        .filter(name => typeof name === "string" && /\.txt$/i.test(name));
+
+      if (!files.length) {
+        existingWorkEl.innerHTML = defaultOptionHtml;
+        setStatus(`Could not find any TXT entries in assets/books manifest. (${manifestError || "manifest missing or empty"})`, true);
+        return;
+      }
+
+      const entries = files
+        .sort((a, b) => a.localeCompare(b))
+        .map(fileName => `<option value="${fileName}">${deriveWorkLabelFromFilename(fileName)}</option>`)
+        .join("\n");
+
+      existingWorkEl.innerHTML = `${defaultOptionHtml}${entries}`;
+    }
+
     function tokenize(text) {
       const normalized = text
         .normalize("NFKD")
@@ -392,8 +506,29 @@
       return normalized.match(/[a-z]+(?:'[a-z]+)?/g) || [];
     }
 
+    function hashString(text) {
+      let hash = 0;
+      for (let i = 0; i < text.length; i++) {
+        hash = Math.imul(31, hash) + text.charCodeAt(i);
+        hash |= 0;
+      }
+      return hash >>> 0;
+    }
+
+    function createSeededRng(seed) {
+      let state = seed >>> 0;
+      return function nextRandom() {
+        state += 0x6D2B79F5;
+        let t = state;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
     function analyzeText(text) {
-      const cleaned = stripGutenbergBoilerplate(text);
+      const withoutSourceHeader = stripSourceHeaderComments(text);
+      const cleaned = stripGutenbergBoilerplate(withoutSourceHeader);
       const words = tokenize(cleaned);
       const counts = new Map();
 
@@ -406,7 +541,7 @@
         .sort((a, b) => b.count - a.count || a.word.localeCompare(b.word))
         .map((row, index) => ({ rank: index + 1, ...row }));
 
-      return { totalWords: words.length, rows };
+      return { totalWords: words.length, rows, words, textHash: hashString(cleaned) };
     }
 
     function formatNumber(value) {
@@ -427,6 +562,76 @@
       const slope = (n * sumXY - sumX * sumY) / denom;
       const intercept = (sumY - slope * sumX) / n;
       return { slope, intercept };
+    }
+
+    function estimateReducedBiasFit(words, minCount, baseSeed) {
+      const rankStart = 10;
+      const rankEnd = 1000;
+      const repeats = 20;
+      const slopes = [];
+      const intercepts = [];
+
+      for (let repeatIndex = 0; repeatIndex < repeats; repeatIndex++) {
+        const seed = (baseSeed + Math.imul(repeatIndex + 1, 0x9E3779B1)) >>> 0;
+        const rng = createSeededRng(seed);
+        const countsA = new Map();
+        const countsB = new Map();
+
+        for (const word of words) {
+          if (rng() < 0.5) {
+            countsA.set(word, (countsA.get(word) || 0) + 1);
+          } else {
+            countsB.set(word, (countsB.get(word) || 0) + 1);
+          }
+        }
+
+        const rankedA = Array.from(countsA.entries())
+          .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+
+        const startIdx = rankStart - 1;
+        const endIdx = Math.min(rankEnd, rankedA.length) - 1;
+        if (startIdx > endIdx) {
+          continue;
+        }
+
+        const xs = [];
+        const ys = [];
+        for (let rankIndex = startIdx; rankIndex <= endIdx; rankIndex++) {
+          const [word] = rankedA[rankIndex];
+          const countB = countsB.get(word) || 0;
+          if (countB < minCount) {
+            continue;
+          }
+
+          xs.push(Math.log10(rankIndex + 1));
+          ys.push(Math.log10(countB));
+        }
+
+        const fit = linearFit(xs, ys);
+        if (!fit) {
+          continue;
+        }
+
+        slopes.push(fit.slope);
+        intercepts.push(fit.intercept);
+      }
+
+      if (!slopes.length) {
+        return { fit: null, sdSlope: null, validRepeats: 0, repeats };
+      }
+
+      const meanSlope = slopes.reduce((sum, value) => sum + value, 0) / slopes.length;
+      const meanIntercept = intercepts.reduce((sum, value) => sum + value, 0) / intercepts.length;
+      const slopeVariance = slopes.length > 1
+        ? slopes.reduce((sum, value) => sum + (value - meanSlope) ** 2, 0) / (slopes.length - 1)
+        : 0;
+
+      return {
+        fit: { slope: meanSlope, intercept: meanIntercept },
+        sdSlope: Math.sqrt(slopeVariance),
+        validRepeats: slopes.length,
+        repeats
+      };
     }
 
     function renderTable(rows) {
@@ -455,7 +660,11 @@
       const visible = rows.filter(row => row.count >= minCount);
       const xs = visible.map(row => Math.log10(row.rank));
       const ys = visible.map(row => Math.log10(row.count));
-      const fit = linearFit(xs, ys);
+      const useReducedBias = reducedBiasModeEl.checked;
+      const reducedBiasSummary = useReducedBias
+        ? estimateReducedBiasFit(currentWords, minCount, currentTextHash)
+        : null;
+      const fit = useReducedBias ? reducedBiasSummary.fit : linearFit(xs, ys);
 
       const traces = [
         {
@@ -472,14 +681,22 @@
       if (fit) {
         const xMin = Math.min(...xs);
         const xMax = Math.max(...xs);
+        const lineName = useReducedBias
+          ? `Reduced-bias slope ${fit.slope.toFixed(3)} (${reducedBiasSummary.validRepeats}/${reducedBiasSummary.repeats})`
+          : `Fit slope ${fit.slope.toFixed(3)}`;
         traces.push({
           x: [xMin, xMax],
           y: [fit.intercept + fit.slope * xMin, fit.intercept + fit.slope * xMax],
           mode: "lines",
-          name: `Fit slope ${fit.slope.toFixed(3)}`,
+          name: lineName,
           hoverinfo: "skip"
         });
-        slopeEl.textContent = fit.slope.toFixed(3);
+
+        if (useReducedBias) {
+          slopeEl.textContent = `${fit.slope.toFixed(3)} +/- ${reducedBiasSummary.sdSlope.toFixed(3)}`;
+        } else {
+          slopeEl.textContent = fit.slope.toFixed(3);
+        }
       } else {
         slopeEl.textContent = "—";
       }
@@ -513,6 +730,8 @@
       currentSourceName = sourceName || "text";
       const result = analyzeText(text);
       currentRows = result.rows;
+      currentWords = result.words;
+      currentTextHash = result.textHash;
 
       updateSummary(result.totalWords, result.rows);
       renderTable(result.rows);
@@ -523,9 +742,9 @@
     }
 
     async function loadExistingWork() {
-      const url = existingWorkEl.value;
+      const fileName = existingWorkEl.value;
       const selectedLabel = existingWorkEl.options[existingWorkEl.selectedIndex]?.text || "selected work";
-      if (!url) {
+      if (!fileName) {
         setStatus("Choose a work first.", true);
         return;
       }
@@ -533,12 +752,33 @@
       loadExistingBtn.disabled = true;
       setStatus(`Loading ${selectedLabel}...`);
       try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const text = await response.text();
+        const encodedName = encodeURIComponent(fileName);
+        const baseCandidates = buildCandidatePaths(window.location.pathname, "books");
+
+        let lastError = "";
+        let text = "";
+        let loaded = false;
+
+        for (const base of baseCandidates) {
+          const url = `${base}${encodedName}`;
+          try {
+            const response = await fetch(url, { cache: "no-store" });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            text = await response.text();
+            loaded = true;
+            break;
+          } catch (error) {
+            lastError = error.message;
+          }
+        }
+
+        if (!loaded) {
+          throw new Error(lastError || "No matching assets/books path was reachable");
+        }
+
         renderAnalysis(text, selectedLabel);
       } catch (error) {
-        setStatus(`Could not load the selected work. This may be a network or CORS issue. Try downloading the TXT from Project Gutenberg and uploading it here. (${error.message})`, true);
+        setStatus(`Could not load the selected local work from docs/assets/books. (${error.message})`, true);
       } finally {
         loadExistingBtn.disabled = false;
       }
@@ -574,7 +814,10 @@
     loadExistingBtn.addEventListener("click", loadExistingWork);
     fileInputEl.addEventListener("change", loadLocalFile);
     minCountEl.addEventListener("change", () => currentRows.length && renderPlot(currentRows));
+    reducedBiasModeEl.addEventListener("change", () => currentRows.length && renderPlot(currentRows));
     downloadCsvBtn.addEventListener("click", downloadCsv);
+
+    populateExistingWorks();
   </script>
 </body>
 </html>
