@@ -5,35 +5,113 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Fractal Mini-Apps</title>
   <link rel="stylesheet" href="./shared/book.css" />
-  <style>
-    body { max-width: 960px; margin: 0 auto; padding: 2rem 1rem 3rem; }
-    .app-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
-    .app-card { background: white; border: 1px solid #d9dde5; border-radius: 16px; padding: 1rem 1.1rem; box-shadow: 0 10px 24px rgba(0,0,0,0.05); }
-    .app-card h2 { margin-top: 0; }
-    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
-    .button { display: inline-block; text-decoration: none; padding: 0.65rem 0.95rem; border-radius: 999px; background: #1f5fbf; color: white; }
-    .button.secondary { background: #eef3fb; color: #173b7a; }
-  </style>
+  <script src="./shared/ui.js" defer></script>
 </head>
 <body>
-  <h1>Fractal Mini-Apps</h1>
-  <p>
-    Interactive companions to <em>The Fractal Nature of Reality: A Primer</em>.
-    These apps are published as open-source browser-based experiments.
-  </p>
-
-  <div class="app-grid">
-    <article class="app-card">
-      <h2>Koch Snowflake with Randomness</h2>
-      <p>
-        Explore how bounded randomness softens the classical Koch snowflake into
-        more organic-looking forms while preserving recursive structure.
-      </p>
-      <div class="actions">
-        <a class="button" href="./apps/koch-random/">Run app</a>
-        <a class="button secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/koch-random">View source</a>
+  <main class="site-shell">
+    <header class="site-header">
+      <div class="site-title-wrap">
+        <p class="site-kicker">Fractal Console Experiments</p>
+        <h1>Fractal Mini-Apps</h1>
       </div>
-    </article>
-  </div>
+      <button type="button" class="theme-toggle" data-theme-toggle>Use dark mode</button>
+    </header>
+
+    <section class="panel intro-panel">
+      <p>
+        Interactive companions to <em>The Fractal Nature of Reality: A Primer</em>.
+        These browser-based mini-apps share a common console-style interface and open-source workflow.
+      </p>
+    </section>
+
+    <section class="app-grid">
+      <!-- <article class="panel app-card">
+        <h2>Koch Random</h2>
+        <p>
+          Explore how bounded randomness softens the classical Koch snowflake while preserving recursive structure.
+        </p>
+        <div class="tag-row">
+          <span class="tag">PyScript</span>
+          <span class="tag">Dimension fit</span>
+        </div>
+        <div class="actions">
+          <a class="button-link" href="./apps/koch-random/">Run app</a>
+          <a class="button-link secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/koch-random">View source</a>
+        </div>
+      </article> -->
+
+      <article class="panel app-card">
+        <h2>Koch Snowflake</h2>
+        <p>
+          A modernized snowflake app with random perturbations, repeatable seeds, and parameterized controls.
+        </p>
+        <div class="tag-row">
+          <span class="tag">Chapter 1</span>
+        </div>
+        <div class="actions">
+          <a class="button-link" href="./apps/koch-snowflake-rnd/">Run app</a>
+          <a class="button-link secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/koch-snowflake-rnd">View source</a>
+        </div>
+      </article>
+
+      <article class="panel app-card">
+        <h2>Dragon Curve</h2>
+        <p>
+          Generate dragon-curve variants with stochastic perturbations to compare structure and texture.
+        </p>
+        <div class="tag-row">
+          <span class="tag">Chapter 1</span>
+        </div>
+        <div class="actions">
+          <a class="button-link" href="./apps/dragon-random/">Run app</a>
+          <a class="button-link secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/dragon-random">View source</a>
+        </div>
+      </article>
+
+      <article class="panel app-card">
+        <h2>Text Power-Law</h2>
+        <p>
+          Inspect ranked word frequencies from local text sources and visualize Zipf-style log-log behavior.
+        </p>
+        <div class="tag-row">
+          <span class="tag">Chapter 1</span>
+        </div>
+        <div class="actions">
+          <a class="button-link" href="./apps/text-power-law/">Run app</a>
+          <a class="button-link secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/text-power-law">View source</a>
+        </div>
+      </article>
+
+      <article class="panel app-card">
+        <h2>Terrain Pyramid</h2>
+        <p>
+          Experimental terrain-style recursive generation app page reserved for expanded controls and renderer updates.
+        </p>
+        <div class="tag-row">
+          <span class="tag">Chapter 1</span>
+        </div>
+        <div class="actions">
+          <a class="button-link" href="./apps/terrain-pyramid-rnd/">Open page</a>
+          <a class="button-link secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/terrain-pyramid-rnd">View source</a>
+        </div>
+      </article>
+
+      <!-- <article class="panel app-card">
+        <h2>Koch Snowflake RND (Legacy)</h2>
+        <p>
+          Legacy reference implementation preserved for comparison against the current snowflake workflow.
+        </p>
+        <div class="tag-row">
+          <span class="tag">Legacy</span>
+          <span class="tag">Reference</span>
+        </div>
+        <div class="actions">
+          <a class="button-link" href="./apps/koch-snowflake-rnd_OLD/">Open legacy</a>
+          <a class="button-link secondary" href="https://github.com/tumnus123/fractal-mini-apps/tree/main/docs/apps/koch-snowflake-rnd_OLD">View source</a>
+        </div>
+      </article> -->
+    </section>
+  </main>
+
 </body>
 </html>
