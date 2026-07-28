@@ -8,12 +8,22 @@ OUTPUT_DIR = Path("qr_codes")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 FIGURES = {
-    "figure_8": {
-        "label": "Figure 8",
-        "caption": "Another perfect rule, roughened.",
+    "chapter_01_figure_05": {
+            "label": "Koch Snowflake Mini-App",
+            "caption": "",
+            "url": "https://tumnus123.github.io/fractal-mini-apps/docs/apps/koch_snowflake_rnd/"
+    },
+    "chapter_01_figure_06": {
+                "label": "Dragon Curve Mini-App",
+                "caption": "",
+        "url": "https://tumnus123.github.io/fractal-mini-apps/docs/apps/dragon-curve-rnd/"
+    },
+    "chapter_01_figure_08": {
+        "label": "Terrain Pyramid Mini-App",
+        "caption": "",
         "url": "https://tumnus123.github.io/fractal-mini-apps/docs/apps/terrain-pyramid-rnd/"
     },
-    "figure_9": {
+    "chapter_01_figure_09": {
         "label": "Figure 9",
         "caption": "The eponymous Mandelbrot Set, rendered using The Stone Soup Group's definitive program, Fractint.",
         "url": "https://www.fractint.org/",
